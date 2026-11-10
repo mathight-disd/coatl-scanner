@@ -273,68 +273,67 @@
       
       tbody.innerHTML = '';
 
-      if (cachedLogs.length === 0) {
+      if (!cachedLogs || cachedLogs.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
         document.getElementById('recordCount').innerText = '0 records';
         return;
       }
 
-      let filtered = cachedLogs.filter(row => {
-        let sectionVal = row[7];
-        let matchesGrade = (selectedGrade === 'ALL' || getGradeKey(sectionVal) === selectedGrade);
-        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
-        return matchesGrade && matchesSection;
-      });
+      try {
+        let filtered = cachedLogs.filter(row => {
+          if (!row || row.length < 8) return false;
+          let sectionVal = row[7] || "";
+          let matchesGrade = (selectedGrade === 'ALL' || getGradeKey(sectionVal) === selectedGrade);
+          let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
+          return matchesGrade && matchesSection;
+        });
 
-      // Sort chronologically by timestamp (newest scans at the top)
-      filtered.sort((a, b) => {
-        let timeA = new Date(a[0] || 0).getTime();
-        let timeB = new Date(b[0] || 0).getTime();
-        return timeB - timeA;
-      });
+        // Sort chronologically by timestamp (newest scans at the top)
+        filtered.sort((a, b) => {
+          let timeA = a[0] ? new Date(a[0]).getTime() : 0;
+          let timeB = b[0] ? new Date(b[0]).getTime() : 0;
+          return timeB - timeA;
+        });
 
-      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+        document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+        document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
-        return;
-      }
-
-      filtered.forEach(row => {
-        // row[1] = ID, row[2] = Location, row[3] = Method, row[6] = Name, row[7] = Section, row[8] = Teacher, row[9] = Photo URL from Column K
-        let nameVal = row[6] || 'Unknown';
-        let idVal = row[1] || '';
-        let locVal = row[2] || '';
-        let methodVal = row[3] || 'Scanned';
-        let sectVal = row[7] || '';
-        let teachVal = row[8] || '';
-        let photoUrl = row[9] || '';
-
-        let visualHtml = '';
-        if (photoUrl && photoUrl.startsWith('http')) {
-          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
-        } else {
-          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-          visualHtml = `<div class="student-initials">${initial}</div>`;
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
+          return;
         }
 
-        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
+        filtered.forEach(row => {
+          let nameVal = row[6] || 'Unknown';
+          let idVal = row[1] || '';
+          let locVal = row[2] || '';
+          let methodVal = row[3] || 'Scanned';
+          let sectVal = row[7] || '';
+          let teachVal = row[8] || '';
+          let photoUrl = row[9] || '';
 
-        let tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + studentHtml + '</td>' +
-                       '<td>' + idVal + '</td>' +
-                       '<td>' + locVal + '</td>' +
-                       '<td><span style="background:#e2e8f0; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
-                       '<td>' + sectVal + '</td>' +
-                       '<td>' + teachVal + '</td>';
-        tbody.appendChild(tr);
-      });
+          let visualHtml = '';
+          if (photoUrl && String(photoUrl).startsWith('http')) {
+            visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
+          } else {
+            let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
+            visualHtml = `<div class="student-initials">${initial}</div>`;
+          }
+
+          let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
+
+          let tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + studentHtml + '</td>' +
+                         '<td>' + idVal + '</td>' +
+                         '<td>' + locVal + '</td>' +
+                         '<td><span style="background:#e2e8f0; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
+                         '<td>' + sectVal + '</td>' +
+                         '<td>' + teachVal + '</td>';
+          tbody.appendChild(tr);
+        });
+
+      } catch (e) {
+        console.error("Render error:", e);
+        document.getElementById('liveStatus').innerText = '🔴 Error rendering table';
+      }
     }
-
-    window.onload = function() {
-      fetchLogs();
-      setInterval(fetchLogs, 5000);
-    };
-  </script>
-</body>
-</html>
