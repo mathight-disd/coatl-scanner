@@ -91,6 +91,17 @@
     </div>
   </div>
 
+  <!-- Hidden form iframe target to submit scans reliably without CORS blocks -->
+  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+  <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
+    <input type="hidden" name="code" id="formCode">
+    <input type="hidden" name="location" id="formLocation">
+    <input type="hidden" name="method" id="formMethod">
+    <input type="hidden" name="name" id="formName">
+    <input type="hidden" name="section" id="formSection">
+    <input type="hidden" name="teacher" id="formTeacher">
+  </form>
+
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
     let html5QrCode = null;
@@ -277,3 +288,16 @@
         }
       }, 1500);
     }
+
+    function showAlert(message, type, autoHide) {
+      var box = document.getElementById('alertBox');
+      box.innerText = message;
+      box.className = type;
+      box.style.display = 'block';
+      if (autoHide) {
+        setTimeout(function() { box.style.display = 'none'; }, 3000);
+      }
+    }
+  </script>
+</body>
+</html>
