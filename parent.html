@@ -27,11 +27,11 @@
     h2 { margin: 4px 0; font-size: 20px; text-transform: uppercase; color: var(--coatl-navy); }
     .form-group { margin-bottom: 16px; text-align: left; }
     label { display: block; font-weight: 800; font-size: 13px; margin-bottom: 6px; text-transform: uppercase; color: var(--coatl-navy); }
-    input[type="text"], select {
+    select {
       width: 100%; padding: 14px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; 
       font-weight: 700; box-sizing: border-box; color: var(--coatl-navy); background: #f8fafc;
     }
-    input[type="text"]:focus, select:focus { border-color: var(--coatl-teal); outline: none; background: #fff; }
+    select:focus { border-color: var(--coatl-teal); outline: none; background: #fff; }
     .checkin-btn {
       background: var(--coatl-red); color: #fff; border: none; padding: 18px;
       font-size: 18px; font-weight: 900; border-radius: 10px; width: 100%; cursor: pointer;
@@ -41,7 +41,6 @@
     #alertBox { margin-top: 16px; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 900; display: none; }
     .success { background: #e0f7fa; color: #0b4f6c; border: 3px solid var(--coatl-teal); }
     .error { background: #ffebee; color: var(--coatl-red); border: 3px solid var(--coatl-red); }
-    #studentPreview { margin-top: 8px; font-size: 13px; font-weight: 700; color: #64748b; text-align: left; }
   </style>
 </head>
 <body>
@@ -52,10 +51,8 @@
       <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800;">Edwin J. Kiest Elementary</div>
     </div>
 
-    <div class="form-group">
-      <label for="studentInput">Student Name or ID:</label>
-      <input type="text" id="studentInput" placeholder="Start typing student name..." autocomplete="off">
-      <div id="studentPreview"></div>
+    <div class="form-group" id="inputContainerArea">
+      <div style="text-align: center; color: #64748b; padding: 20px; font-weight: 600;" id="loadingText">Authenticating family token...</div>
     </div>
 
     <div class="form-group">
@@ -69,7 +66,7 @@
       </select>
     </div>
 
-    <button class="checkin-btn" onclick="submitParentCheckIn()">🚗 Notify Arrival</button>
+    <button class="checkin-btn" onclick="submitParentCheckIn()" id="submitBtn" style="display:none;">🚗 Notify Arrival</button>
 
     <div id="alertBox"></div>
   </div>
@@ -86,37 +83,21 @@
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
-    let studentRoster = {};
-    let resolvedCode = "";
-    let resolvedName = "";
-    let resolvedSection = "";
-    let resolvedTeacher = "";
+    const urlParams = new URLSearchParams(window.location.search);
+    const familyToken = urlParams.get('token');
+    
+    let matchedStudentsList = [];
 
     window.onload = function() {
+      if (!familyToken) {
+        document.getElementById('inputContainerArea').innerHTML = `
+          <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
+            ⚠️ Missing family access token. Please use your official family QR card or dismissal link.
+          </div>
+        `;
+        return;
+      }
       loadRosterJSONP();
-      
-      document.getElementById('studentInput').addEventListener('input', function(e) {
-        let val = e.target.value.trim().toLowerCase();
-        resolvedCode = "";
-        resolvedName = "";
-        resolvedSection = "";
-        resolvedTeacher = "";
-        document.getElementById('studentPreview').innerText = "";
-
-        if (val.length < 2) return;
-
-        for (let code in studentRoster) {
-          let s = studentRoster[code];
-          if (s.name.toLowerCase().includes(val) || String(code) === val) {
-            resolvedCode = code;
-            resolvedName = s.name;
-            resolvedSection = s.section || "";
-            resolvedTeacher = s.teacher || "";
-            document.getElementById('studentPreview').innerText = `Selected: ${s.name} (${s.section || 'Homeroom'})`;
-            break;
-          }
-        }
-      });
     };
 
     function loadRosterJSONP() {
@@ -127,61 +108,84 @@
         delete window[cbName];
 
         if (Array.isArray(data)) {
+          matchedStudentsList = [];
+          
           data.forEach(student => {
-            studentRoster[String(student.id).trim()] = student;
+            let token = String(student.token || student.familyToken || '').trim();
+            if (token === familyToken) {
+              matchedStudentsList.push(student);
+            }
           });
+
+          if (matchedStudentsList.length > 0) {
+            let html = `<label>Students in Family:</label>`;
+            matchedStudentsList.forEach((st, idx) => {
+              html += `
+                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 2px solid #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                  <div style="text-align: left;">
+                    <div style="font-size: 16px; font-weight: 900; color: var(--coatl-navy);">${st.name}</div>
+                    <div style="font-size: 12px; color: var(--coatl-red); font-weight: 700;">Homeroom: ${st.section || 'General'}</div>
+                  </div>
+                  <input type="checkbox" class="student-checkbox" data-index="${idx}" checked style="width: 24px; height: 24px; accent-color: var(--coatl-teal); cursor: pointer;">
+                </div>
+              `;
+            });
+            document.getElementById('inputContainerArea').innerHTML = html;
+            document.getElementById('submitBtn').style.display = 'block';
+          } else {
+            document.getElementById('inputContainerArea').innerHTML = `
+              <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
+                ⚠️ Invalid or expired access link. Please contact the front office.
+              </div>
+            `;
+          }
         }
       };
 
       var script = document.createElement('script');
       script.id = cbName;
       script.src = APPS_SCRIPT_URL + '?callback=' + cbName;
+      script.onerror = function() {
+        document.getElementById('inputContainerArea').innerHTML = `
+          <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
+            ⚠️ Unable to connect to roster database. Please try again later.
+          </div>
+        `;
+      };
       document.body.appendChild(script);
     }
 
     function submitParentCheckIn() {
-      let inputVal = document.getElementById('studentInput').value.trim();
-      let location = document.getElementById('locationSelect').value;
+      let checkboxes = document.querySelectorAll('.student-checkbox');
+      let selectedCount = 0;
 
-      if (!inputVal) {
-        showAlert("Please enter a student name or ID.", "error");
+      checkboxes.forEach(chk => {
+        if (chk.checked) {
+          let idx = chk.getAttribute('data-index');
+          let st = matchedStudentsList[idx];
+          let location = document.getElementById('locationSelect').value;
+
+          try {
+            document.getElementById('formCode').value = st.id;
+            document.getElementById('formLocation').value = location + " (Parent Check-In)";
+            document.getElementById('formMethod').value = "Parent Portal";
+            document.getElementById('formName').value = st.name;
+            document.getElementById('formSection').value = st.section || "";
+            document.getElementById('formTeacher').value = st.teacher || "";
+            document.getElementById('checkInForm').submit();
+            selectedCount++;
+          } catch (err) {
+            console.error("Submission error:", err);
+          }
+        }
+      });
+
+      if (selectedCount === 0) {
+        showAlert("Please select at least one student to check in.", "error");
         return;
       }
 
-      // If they typed something but didn't match via live preview, attempt raw lookup
-      if (!resolvedCode) {
-        for (let code in studentRoster) {
-          let s = studentRoster[code];
-          if (s.name.toLowerCase() === inputVal.toLowerCase() || String(code) === inputVal) {
-            resolvedCode = code;
-            resolvedName = s.name;
-            resolvedSection = s.section || "";
-            resolvedTeacher = s.teacher || "";
-            break;
-          }
-        }
-      }
-
-      let finalName = resolvedName || inputVal;
-      let finalCode = resolvedCode || inputVal;
-
-      try {
-        document.getElementById('formCode').value = finalCode;
-        document.getElementById('formLocation').value = location + " (Parent Check-In)";
-        document.getElementById('formMethod').value = "Parent Portal";
-        document.getElementById('formName').value = finalName;
-        document.getElementById('formSection').value = resolvedSection;
-        document.getElementById('formTeacher').value = resolvedTeacher;
-        document.getElementById('checkInForm').submit();
-
-        showAlert("✅ Arrival Noticed! Your student's teacher has been alerted.", "success");
-        document.getElementById('studentInput').value = "";
-        document.getElementById('studentPreview').innerText = "";
-        resolvedCode = "";
-        resolvedName = "";
-      } catch (err) {
-        showAlert("⚠️ Check-in failed to transmit. Please try again.", "error");
-      }
+      showAlert("✅ Arrival Noticed! Your student's teacher has been alerted.", "success");
     }
 
     function showAlert(message, type) {
