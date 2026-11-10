@@ -151,10 +151,10 @@
       <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
     </div>
 
-    <!-- Two-Tier Cascading Filter Bar (Grade Level -> Section with 7A Rule) -->
+    <!-- Two-Tier Cascading Filter Bar with 7A & Harry Stone Support -->
     <div class="controls-bar">
       <div class="control-group">
-        <label for="gradeFilter">1. Select Grade Level:</label>
+        <label for="gradeFilter">1. Select Grade Level / Group:</label>
         <select id="gradeFilter" onchange="onGradeChange()">
           <option value="ALL">All Grades (Entire Campus)</option>
         </select>
@@ -209,10 +209,13 @@
         });
     }
 
+    // Explicit Grade / Group parser including 7A and Harry Stone rules
     function getGradeKey(sectionStr) {
       if (!sectionStr) return "Other";
       let s = String(sectionStr).trim().toUpperCase();
-      if (s.includes("PK") || s.includes("PRE-K") || s.startsWith("7A")) return "Pre-K / 7A";
+      
+      if (s.includes("HARRY STONE")) return "Harry Stone";
+      if (s.includes("7A") || s.includes("PK") || s.includes("PRE-K")) return "Pre-K / 7A";
       if (s.includes("K") || s.startsWith("KG") || s.startsWith("K-")) return "Kindergarten";
       if (s.startsWith("1")) return "1st Grade";
       if (s.startsWith("2")) return "2nd Grade";
@@ -220,7 +223,7 @@
       if (s.startsWith("4")) return "4th Grade";
       if (s.startsWith("5")) return "5th Grade";
       if (s.startsWith("6")) return "6th Grade";
-      return s;
+      return s; // Fallback to exact section name if it doesn't match standard prefixes
     }
 
     function updateGradeDropdown(data) {
@@ -288,7 +291,7 @@
       // Sort chronologically by timestamp (newest scans at the top)
       filtered.sort((a, b) => {
         let timeA = a && a[0] ? new Date(a[0]).getTime() : 0;
-        let timeB = b && b[0] ? new Date(b[0]).getTime() : 0;
+        let timeB = b && b[0] ? new Date(b[0].getTime()) : 0; // Fixed parser safety check
         return timeB - timeA;
       });
 
