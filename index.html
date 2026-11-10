@@ -79,16 +79,17 @@
       <label for="scanInput" style="text-align:left; display:block; font-weight:800; font-size:14px; margin-bottom:3px;">Or Type Student ID:</label>
       <div class="manual-row">
         <input type="text" id="scanInput" placeholder="ID..." autocomplete="off">
-        <button class="submit-btn" onclick="submitScan(document.getElementById('scanInput').value.trim())">Submit</button>
+        <button class="submit-btn" onclick="submitScan(document.getElementById('scanInput').value.trim(), 'Typed')">Submit</button>
       </div>
     </div>
   </div>
 
-  <!-- Hidden iframe to handle cross-origin Google Apps Script responses cleanly -->
+  <!-- Hidden iframe & form to submit data securely -->
   <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
   <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
     <input type="hidden" name="code" id="formCode">
     <input type="hidden" name="location" id="formLocation">
+    <input type="hidden" name="method" id="formMethod">
   </form>
 
   <script>
@@ -117,7 +118,7 @@
 
       var input = document.getElementById('scanInput');
       input.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') submitScan(input.value.trim());
+        if (e.key === 'Enter') submitScan(input.value.trim(), 'Typed');
       });
     };
 
@@ -168,10 +169,10 @@
       }
       if (html5QrCode && html5QrCode.isScanning) html5QrCode.pause();
       playBeep();
-      submitScan(code);
+      submitScan(code, 'Scanned'); // Marks method as Scanned
     }
 
-    async function submitScan(code) {
+    function submitScan(code, method) {
       var location = document.getElementById('locationSelect').value;
       if (!code) {
         showAlert('Please enter or scan an ID.', 'error', true);
@@ -181,14 +182,13 @@
 
       showAlert('Logging ID: ' + code + '...', 'processing', false);
 
-      // If you have a Roster tab set up in your sheet, we can fetch a JSONP/callback or display the lookup match.
-      // For immediate local feedback while it logs in the background:
       try {
         document.getElementById('formCode').value = code;
         document.getElementById('formLocation').value = location;
+        document.getElementById('formMethod').value = method;
         document.getElementById('scanForm').submit();
 
-        showAlert('✅ Logged: ' + code + ' (' + location + ')', 'success', true);
+        showAlert('✅ Logged (' + method + '): ' + code, 'success', true);
         if ("vibrate" in navigator) navigator.vibrate(200);
       } catch (err) {
         showAlert('Network error: ' + err.message, 'error', true);
