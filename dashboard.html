@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0">
+  <title>Kiest Coatls Teacher Dashboard</title>
+  <style>
+    :root {
+      --coatl-red: #C8232C;
+      --coatl-navy: #13264E;
+      --coatl-teal: #00A8E8;
+      --coatl-bg: #F4F6F9;
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--coatl-bg);
+      color: var(--coatl-navy);
+      margin: 0;
+      padding: 15px;
+    }
+    .container { max-width: 900px; margin: auto; }
+    .header {
+      background: #ffffff;
+      padding: 15px 20px;
+      border-radius: 12px;
+      border-top: 8px solid var(--coatl-red);
+      box-shadow: 0 4px 12px rgba(19, 38, 78, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    h2 { margin: 0; color: var(--coatl-navy); text-transform: uppercase; font-size: 20px; }
+    .status-badge {
+      background: #e0f7fa; color: #0b4f6c; padding: 6px 12px;
+      border-radius: 20px; font-weight: 700; font-size: 13px;
+    }
+    .table-container {
+      background: #ffffff;
+      border-radius: 12px;
+      overflow-x: auto;
+      box-shadow: 0 4px 12px rgba(19, 38, 78, 0.1);
+      border-bottom: 6px solid var(--coatl-teal);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: var(--coatl-navy);
+      color: #ffffff;
+      padding: 12px 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+      font-weight: 600;
+    }
+    tr:hover { background: #f8fafc; }
+    .no-data { text-align: center; padding: 30px; color: #64748b; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h2>Edwin J. Kiest Coatls</h2>
+        <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 2px;">LIVE DISMISSAL MONITOR</div>
+      </div>
+      <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Student Name</th>
+            <th>ID</th>
+            <th>Location</th>
+            <th>Method</th>
+            <th>Section</th>
+            <th>Teacher</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody">
+          <tr><td colspan="7" class="no-data">Loading recent dismissal logs...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // PASTE YOUR APPS SCRIPT WEB APP URL HERE:
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+
+    function loadLogs() {
+      fetch(APPS_SCRIPT_URL + '?action=getLogs')
+        .then(response => response.json())
+        .then(data => {
+          var tbody = document.getElementById('logTableBody');
+          tbody.innerHTML = '';
+
+          if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="no-data">No scans found in the sheet yet.</td></tr>';
+            return;
+          }
+
+          for (var i = data.length - 1; i >= 0; i--) {
+            var row = data[i];
+            var timeVal = row[5] || (row[0] ? new Date(row[0]).toLocaleTimeString() : '');
+            var nameVal = row[6] || 'Unknown';
+            var idVal = row[1] || '';
+            var locVal = row[2] || '';
+            var methodVal = row[3] || 'Scanned';
+            var sectVal = row[7] || '';
+            var teachVal = row[8] || '';
+
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + timeVal + '</td>' +
+                           '<td style="color:var(--coatl-navy); font-weight:800;">' + nameVal + '</td>' +
+                           '<td>' + idVal + '</td>' +
+                           '<td>' + locVal + '</td>' +
+                           '<td><span style="background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
+                           '<td>' + sectVal + '</td>' +
+                           '<td>' + teachVal + '</td>';
+            tbody.appendChild(tr);
+          }
+        })
+        .catch(err => {
+          document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
+        });
+    }
+
+    window.onload = function() {
+      loadLogs();
+      setInterval(loadLogs, 5000);
+    };
+  </script>
+</body>
+</html>
