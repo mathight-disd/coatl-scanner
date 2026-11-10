@@ -282,7 +282,7 @@
       return [s];
     }
 
-    // Dynamic Pastel Row Styling: Active only when a specific grade or section filter is applied
+    // Dynamic Pastel Row Styling: Automatically active whenever a grade or section filter is chosen
     function getRowPastelStyle(sectionName, isFiltered) {
       if (!isFiltered || !sectionName) return 'background-color: #ffffff;';
       let hash = 0;
@@ -291,7 +291,7 @@
         hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
       }
       let h = Math.abs(hash) % 360;
-      return `background-color: hsl(${h}, 65%, 94%);`;
+      return `background-color: hsl(${h}, 70%, 93%);`;
     }
 
     function getAmenityLocationClass(locStr) {
@@ -385,8 +385,8 @@
         return;
       }
 
-      // Explicit check: Pastel coloring is enabled ONLY when Grade or Section filter is NOT set to 'ALL'
-      let isFilteredView = (selectedGrade !== 'ALL' || selectedSection !== 'ALL');
+      // Pastel coloring activates as long as Grade Level is NOT 'ALL'
+      let isFilteredView = (selectedGrade !== 'ALL');
 
       filtered.forEach(row => {
         let nameVal = row[6] || 'Unknown';
@@ -411,7 +411,7 @@
         let locClass = getAmenityLocationClass(locVal);
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
 
-        // Pastel Background per Section (Only lights up when a grade or section is actively chosen)
+        // Unique Pastel Background per Section (Active when viewing any specific grade)
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
 
         let tr = document.createElement('tr');
