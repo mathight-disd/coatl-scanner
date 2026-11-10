@@ -116,7 +116,7 @@
       color: #1e293b;
       font-weight: 600;
       vertical-align: middle;
-      background-color: #ffffff; /* Clean white default for ALL Students view */
+      background-color: #ffffff;
     }
     .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; background: #ffffff !important; }
     
@@ -272,7 +272,7 @@
       }
       if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
         grades.push("4th Grade");
-        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A" ) || upperS.includes("4B")) grades.push("3rd Grade");
+        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A") || upperS.includes("4B")) grades.push("3rd Grade");
         return grades;
       }
 
@@ -282,7 +282,7 @@
       return [s];
     }
 
-    // Unique Pastel Row Styling only active when a specific grade or section is selected
+    // Dynamic Pastel Row Styling: Active only when a specific grade or section filter is applied
     function getRowPastelStyle(sectionName, isFiltered) {
       if (!isFiltered || !sectionName) return 'background-color: #ffffff;';
       let hash = 0;
@@ -385,7 +385,7 @@
         return;
       }
 
-      // Determine if a specific grade or section is currently filtered (excluding ALL)
+      // Explicit check: Pastel coloring is enabled ONLY when Grade or Section filter is NOT set to 'ALL'
       let isFilteredView = (selectedGrade !== 'ALL' || selectedSection !== 'ALL');
 
       filtered.forEach(row => {
@@ -411,7 +411,7 @@
         let locClass = getAmenityLocationClass(locVal);
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
 
-        // Unique Pastel Background per Section (Only applied if filtered by grade/section)
+        // Pastel Background per Section (Only lights up when a grade or section is actively chosen)
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
 
         let tr = document.createElement('tr');
@@ -419,7 +419,7 @@
         tr.innerHTML = '<td>' + studentHtml + '</td>' +
                        '<td>' + idVal + '</td>' +
                        '<td>' + locationHtml + '</td>' +
-                       '<td><span style="background:rgba(255,255,255,0.6); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
+                       '<td><span style="background:rgba(255,255,255,0.7); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
                        '<td><span class="section-text">' + sectVal + '</span></td>' +
                        '<td>' + teachVal + '</td>';
         tbody.appendChild(tr);
