@@ -111,22 +111,34 @@
         if (e.key === 'Enter') submitScan(input.value.trim(), 'Typed');
       });
 
-      // Load roster into browser memory for instant local name lookups
-      fetch(APPS_SCRIPT_URL)
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            data.forEach(student => {
-              studentRoster[String(student.id).trim()] = student;
-            });
-            document.getElementById('rosterStatusinnerText = '✅ Roster Loaded (' + Object.keys(studentRoster).length + ' students)');
-            document.getElementById('rosterStatus').style.color = '#0b4f6c';
-          }
-        })
-        .catch(err => {
-          document.getElementById('rosterStatus').innerText = '⚠️ Roster offline (using ID fallback)';
-        });
+      // Load roster via JSONP to bypass CORS blocks
+      loadRosterJSONP();
     };
+
+    function loadRosterJSONP() {
+      var cbName = 'roster_cb_' + Date.now();
+      window[cbName] = function(data) {
+        var el = document.getElementById(cbName);
+        if (el) el.remove();
+        delete window[cbName];
+
+        if (Array.isArray(data)) {
+          data.forEach(student => {
+            studentRoster[String(student.id).trim()] = student;
+          });
+          document.getElementById('rosterStatus').innerText = '✅ Roster Loaded (' + Object.keys(studentRoster).length + ' students)';
+          document.getElementById('rosterStatus').style.color = '#0b4f6c';
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName;
+      script.onerror = function() {
+        document.getElementById('rosterStatus').innerText = '⚠️ Roster offline (using ID fallback)';
+      };
+      document.body.appendChild(script);
+    }
 
     function playBeep() {
       try {
@@ -210,7 +222,6 @@
       showAlert('✅ ' + studentName + ' (' + location + ')', 'success', true);
       if ("vibrate" in navigator) navigator.vibrate(200);
 
-      // Send to Google Sheet in the background via hidden form
       try {
         document.getElementById('formCode').value = code;
         document.getElementById('formLocation').value = location;
