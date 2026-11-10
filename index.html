@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
   <title>Kiest Coatls Live Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
       --coatl-red: #C8232C;
@@ -37,10 +38,10 @@
       margin: 4px auto; display: none;
     }
     #reader {
-      width: 100%; max-height: 270px; border-radius: 10px; overflow: hidden;
+      width: 100%; max-height: 250px; border-radius: 10px; overflow: hidden;
       border: 3px solid var(--coatl-teal); background: #000; margin: 2px auto; display: none;
     }
-    #reader video { width: 100% !important; height: 240px !important; object-fit: cover !important; }
+    #reader video { width: 100% !important; height: 230px !important; object-fit: cover !important; }
     .manual-row { display: flex; gap: 6px; }
     input[type="text"] { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; font-weight: 700; }
     .submit-btn { background: var(--coatl-red); color: #fff; border: none; padding: 0 18px; font-size: 15px; border-radius: 8px; font-weight: 900; text-transform: uppercase; }
@@ -71,6 +72,10 @@
     </div>
 
     <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
+    
+    <!-- iOS Native Camera Photo Fallback (Guaranteed to work if WebKit live stream acts up) -->
+    <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleIOSPhotoCapture(event)">
+    <label for="iosCameraInput" id="iosFallbackBtn" class="start-cam-btn" style="background:#13264E; display:none;">📸 Tap to Snap Badge (iOS Mode)</label>
 
     <div id="reader"></div>
     <button class="torch-btn" id="torchBtn" onclick="toggleTorch()">🔦 Toggle Flashlight</button>
@@ -111,7 +116,6 @@
         if (e.key === 'Enter') submitScan(input.value.trim(), 'Typed');
       });
 
-      // Load roster via JSONP to bypass CORS blocks
       loadRosterJSONP();
     };
 
@@ -164,7 +168,12 @@
         verbose: false
       });
 
-      const config = { fps: 24, qrbox: { width: 230, height: 230 }, disableFlip: false };
+      // iOS-optimized constraints (prevents freezing & forces proper focus)
+      const config = { 
+        fps: 20, 
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0
+      };
       
       html5QrCode.start(
         { facingMode: "environment" }, 
@@ -179,9 +188,10 @@
           }
         } catch(e) {}
       }).catch(err => {
-        showAlert("Camera access blocked. Please allow permissions.", "error", false);
-        document.getElementById('startBtn').style.display = 'block';
+        // If iOS Safari blocks or chokes on live stream, gracefully unveil the native photo snapper!
         document.getElementById('reader').style.display = 'none';
+        document.getElementById('iosFallbackBtn').style.display = 'block';
+        showAlert("Live stream restricted on this iOS browser. Tap the dark blue button to snap badges!", "processing", false);
       });
     }
 
@@ -205,6 +215,42 @@
       submitScan(code, 'Scanned');
     }
 
+    // High-speed fallback for iOS devices where live viewfinders are finicky
+    async function handleIOSPhotoCapture(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      showAlert("Reading badge...", "processing", false);
+
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = async () => {
+        URL.revokeObjectURL(url);
+        const w = img.width, h = img.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        
+        let code = null;
+        try {
+          const res = jsQR(imgData.data, w, h, { inversionAttempts: "attemptBoth" });
+          if (res && res.data) code = res.data.trim();
+        } catch(e) {}
+
+        canvas.remove();
+        event.target.value = '';
+
+        if (code) {
+          playBeep();
+          submitScan(code, 'Scanned');
+        } else {
+          showAlert("Could not read QR. Hold steady and try again.", "error", true);
+        }
+      };
+      img.src = url;
+    }
+
     function submitScan(code, method) {
       var location = document.getElementById('locationSelect').value;
       if (!code) {
@@ -213,7 +259,6 @@
         return;
       }
 
-      // INSTANT LOCAL ROSTER LOOKUP
       let student = studentRoster[code];
       let studentName = student ? student.name : ("ID: " + code);
       let section = student ? student.section : "";
