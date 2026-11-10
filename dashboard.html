@@ -117,8 +117,8 @@
       font-weight: 600;
       vertical-align: middle;
     }
-    tr:hover { background: #f8fafc; }
     .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; }
+    
     .student-cell {
       display: flex;
       align-items: center;
@@ -146,6 +146,30 @@
       font-size: 15px;
       flex-shrink: 0;
     }
+
+    /* Pastel Section Pill / Tag */
+    .section-tag {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-block;
+    }
+
+    /* Dismissal Location Color Badges */
+    .location-badge {
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+    .loc-carline { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .loc-bus { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .loc-walker { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
   </style>
 </head>
 <body>
@@ -215,184 +239,4 @@
 
     function fetchLogs() {
       fetch(APPS_SCRIPT_URL + '?action=getLogs')
-        .then(response => response.json())
-        .then(data => {
-          cachedLogs = Array.isArray(data) ? data : [];
-          updateSectionDropdown(cachedLogs);
-          renderTable();
-        })
-        .catch(err => {
-          console.error("Fetch error:", err);
-          document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
-        });
-    }
-
-    // Helper to determine all valid grades a section belongs to (supporting split levels and 7A rule)
-    function getSectionGrades(sectionStr) {
-      if (!sectionStr) return ["Other"];
-      let s = String(sectionStr).trim();
-      let upperS = s.toUpperCase();
-      let grades = [];
-
-      // Universal 7A Rule: Appears everywhere
-      if (upperS === "7A" || upperS.includes("7A")) {
-        return ["Pre-K", "Kinder", "1st Grade", "2nd Grade", "3rd Grade", "4th Grade", "5th Grade", "6th Grade", "FLS & TC"];
-      }
-
-      // Specialized Units
-      if (upperS.includes("FLS") || upperS.includes("TC")) {
-        return ["FLS & TC"];
-      }
-
-      // Pre-K
-      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) {
-        return ["Pre-K"];
-      }
-
-      // Kinder
-      if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) {
-        return ["Kinder"];
-      }
-
-      // 1st Grade
-      if (upperS.startsWith("1") || upperS.includes("1ST")) {
-        return ["1st Grade"];
-      }
-
-      // 2nd Grade
-      if (upperS.startsWith("2") || upperS.includes("2ND")) {
-        return ["2nd Grade"];
-      }
-
-      // 3rd Grade (Split level: 3A and 3B also show in 4th Grade)
-      if (upperS.startsWith("3") || upperS.includes("3RD")) {
-        grades.push("3rd Grade");
-        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) {
-          grades.push("4th Grade");
-        }
-        return grades;
-      }
-
-      // 4th Grade (Split level: 4A and 4B also show in 3rd Grade)
-      if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
-        grades.push("4th Grade");
-        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A") || upperS.includes("4B")) {
-          grades.push("3rd Grade");
-        }
-        return grades;
-      }
-
-      // 5th & 6th Grade
-      if (upperS.startsWith("5") || upperS.includes("5TH")) return ["5th Grade"];
-      if (upperS.startsWith("6") || upperS.includes("6TH")) return ["6th Grade"];
-
-      return [s];
-    }
-
-    function onGradeChange() {
-      updateSectionDropdown(cachedLogs);
-      renderTable();
-    }
-
-    function updateSectionDropdown(data) {
-      const selectedGrade = document.getElementById('gradeFilter').value;
-      const select = document.getElementById('sectionFilter');
-      const currentSelection = select.value;
-      
-      let filteredData = data;
-      if (selectedGrade !== 'ALL') {
-        filteredData = data.filter(row => {
-          if (!row || !row[7]) return false;
-          let grades = getSectionGrades(row[7]);
-          return grades.includes(selectedGrade);
-        });
-      }
-      
-      const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
-      
-      let html = '<option value="ALL">All Sections</option>';
-      sections.forEach(sec => {
-        html += `<option value="${sec}">${sec}</option>`;
-      });
-      
-      select.innerHTML = html;
-      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById('logTableBody');
-      const selectedGrade = document.getElementById('gradeFilter').value;
-      const selectedSection = document.getElementById('sectionFilter').value;
-      
-      tbody.innerHTML = '';
-
-      if (!cachedLogs || cachedLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
-        document.getElementById('recordCount').innerText = '0 records';
-        return;
-      }
-
-      let filtered = cachedLogs.filter(row => {
-        if (!row || row.length < 8) return false;
-        let sectionVal = row[7] || "";
-        let studentGrades = getSectionGrades(sectionVal);
-
-        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
-        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
-        return matchesGrade && matchesSection;
-      });
-
-      // Sort chronologically (newest scans at the top)
-      filtered.sort((a, b) => {
-        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
-        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
-        if (isNaN(timeA)) timeA = 0;
-        if (isNaN(timeB)) timeB = 0;
-        return timeB - timeA;
-      });
-
-      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
-      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
-        return;
-      }
-
-      filtered.forEach(row => {
-        let nameVal = row[6] || 'Unknown';
-        let idVal = row[1] || '';
-        let locVal = row[2] || '';
-        let methodVal = row[3] || 'Scanned';
-        let sectVal = row[7] || '';
-        let teachVal = row[8] || '';
-        let photoUrl = row[9] || '';
-
-        let visualHtml = '';
-        if (photoUrl && String(photoUrl).startsWith('http')) {
-          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
-        } else {
-          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-          visualHtml = `<div class="student-initials">${initial}</div>`;
-        }
-
-        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
-
-        let tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + studentHtml + '</td>' +
-                       '<td>' + idVal + '</td>' +
-                       '<td>' + locVal + '</td>' +
-                       '<td><span style="background:#e2e8f0; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
-                       '<td>' + sectVal + '</td>' +
-                       '<td>' + teachVal + '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-
-    window.onload = function() {
-      fetchLogs();
-      setInterval(fetchLogs, 5000);
-    };
-  </script>
-</body>
-</html>
+        .then
