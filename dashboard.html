@@ -271,7 +271,7 @@
       // Split level 3rd & 4th grade cross-listing
       if (upperS.startsWith("3") || upperS.includes("3RD")) {
         grades.push("3rd Grade");
-        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A" ) || upperS.includes("3B")) grades.push("4th Grade");
+        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) grades.push("4th Grade");
         return grades;
       }
       if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
@@ -294,7 +294,7 @@
         hash = sectionName.charCodeAt(i) + ((hash << 5) - hash);
       }
       let h = Math.abs(hash) % 360;
-      return `background-color: hsl(${h}, 70%, 92%); color: hsl(${h}, 80%, 25%); border: 1px solid hsl(${h}, 60%, 82%);`;
+      return `background-color: hsl(\${h}, 70%, 92%); color: hsl(${h}, 80\%, 25\%); border: 1px solid hsl(${h}, 60%, 82%);`;
     }
 
     function getAmenityLocationClass(locStr) {
@@ -330,57 +330,7 @@
       
       let html = '<option value="ALL">All Sections</option>';
       sections.forEach(sec => {
-        html += `<option value="${sec}">${sec}</option>`;
-      });
-      
-      select.innerHTML = html;
-      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById('logTableBody');
-      const selectedGrade = document.getElementById('gradeFilter').value;
-      const selectedSection = document.getElementById('sectionFilter').value;
-      
-      tbody.innerHTML = '';
-
-      if (!cachedLogs || cachedLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
-        document.getElementById('recordCount').innerText = '0 records';
-        return;
-      }
-
-      // 1. Sort all raw logs chronologically (newest first)
-      let sortedLogs = [...cachedLogs].sort((a, b) => {
-        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
-        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
-        if (isNaN(timeA)) timeA = 0;
-        if (isNaN(timeB)) timeB = 0;
-        return timeB - timeA;
-      });
-
-      // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID (Col B / row[1])
-      let uniqueMap = new Map();
-      sortedLogs.forEach(row => {
-        if (!row || row.length < 8) return;
-        let studentId = String(row[1] || '').trim();
-        if (studentId && !uniqueMap.has(studentId)) {
-          uniqueMap.set(studentId, row);
-        }
-      });
-      let deduplicatedLogs = Array.from(uniqueMap.values());
-
-      // 3. Filter by Grade and Section
-      let filtered = deduplicatedLogs.filter(row => {
-        let sectionVal = row[7] || "";
-        let studentGrades = getSectionGrades(sectionVal);
-
-        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
-        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
-        return matchesGrade && matchesSection;
-      });
-
-      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+        html += `<option value="\${sec}">${sec}</option>`; });  select.innerHTML = html; select.value = sections.includes(currentSelection) ? currentSelection : 'ALL'; }  function renderTable() { const tbody = document.getElementById('logTableBody'); const selectedGrade = document.getElementById('gradeFilter').value; const selectedSection = document.getElementById('sectionFilter').value;  tbody.innerHTML = '';  if (!cachedLogs \vert{}\vert{} cachedLogs.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>'; document.getElementById('recordCount').innerText = '0 records'; return; }  // 1. Sort all raw logs chronologically (newest first) let sortedLogs = [...cachedLogs].sort((a, b) => { let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0; let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0; if (isNaN(timeA)) timeA = 0; if (isNaN(timeB)) timeB = 0; return timeB - timeA; });  // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID let uniqueMap = new Map(); sortedLogs.forEach(row => { if (!row \vert{}\vert{} row.length < 8) return; let studentId = String(row[1] \vert{}\vert{} '').trim(); if (studentId && !uniqueMap.has(studentId)) { uniqueMap.set(studentId, row); } }); let deduplicatedLogs = Array.from(uniqueMap.values());  // 3. Filter by Grade and Section let filtered = deduplicatedLogs.filter(row => { let sectionVal = row[7] \vert{}\vert{} ""; let studentGrades = getSectionGrades(sectionVal);  let matchesGrade = (selectedGrade === 'ALL' \vert{}\vert{} studentGrades.includes(selectedGrade)); let matchesSection = (selectedSection === 'ALL' \vert{}\vert{} sectionVal === selectedSection); return matchesGrade && matchesSection; });  document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
       document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
 
       if (filtered.length === 0) {
@@ -403,33 +353,6 @@
           visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
         } else {
           let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-          visualHtml = `<div class="student-initials">${initial}</div>`;
+          visualHtml = `<div class="student-initials">\${initial}</div>`;
         }
-        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
-
-        // Color-coded Location Badge
-        let locClass = getAmenityLocationClass(locVal);
-        let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
-
-        // Pastel Section Badge
-        let sectionBadgeStyle = getSectionBadgeStyle(sectVal);
-        let sectionHtml = `<span class="section-tag" style="${sectionBadgeStyle}">${sectVal}</span>`;
-
-        let tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + studentHtml + '</td>' +
-                       '<td>' + idVal + '</td>' +
-                       '<td>' + locationHtml + '</td>' +
-                       '<td><span style="background:#e2e8f0; color:#334155; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
-                       '<td>' + sectionHtml + '</td>' +
-                       '<td>' + teachVal + '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-
-    window.onload = function() {
-      fetchLogs();
-      setInterval(fetchLogs, 5000);
-    };
-  </script>
-</body>
-</html>
+        let studentHtml = `<div class="student-cell">\${visualHtml}<span style="color:var(--coatl-
