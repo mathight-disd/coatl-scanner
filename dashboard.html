@@ -190,7 +190,6 @@
   </div>
 
   <script>
-    // PASTE YOUR APPS SCRIPT WEB APP URL HERE:
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
 
     let cachedLogs = [];
@@ -199,14 +198,13 @@
       fetch(APPS_SCRIPT_URL + '?action=getLogs')
         .then(response => response.json())
         .then(data => {
-          if (!data) data = [];
-          cachedLogs = data;
-          
-          updateGradeDropdown(data);
-          updateSectionDropdown(data);
+          cachedLogs = Array.isArray(data) ? data : [];
+          updateGradeDropdown(cachedLogs);
+          updateSectionDropdown(cachedLogs);
           renderTable();
         })
         .catch(err => {
+          console.error("Fetch error:", err);
           document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
         });
     }
@@ -229,7 +227,7 @@
       const select = document.getElementById('gradeFilter');
       const currentSelection = select.value;
       
-      const grades = [...new Set(data.map(row => getGradeKey(row[7])).filter(Boolean))].sort();
+      const grades = [...new Set(data.map(row => getGradeKey(row ? row[7] : "")).filter(Boolean))].sort();
       
       let html = '<option value="ALL">All Grades (Entire Campus)</option>';
       grades.forEach(g => {
@@ -252,10 +250,10 @@
       
       let filteredData = data;
       if (selectedGrade !== 'ALL') {
-        filteredData = data.filter(row => getGradeKey(row[7]) === selectedGrade);
+        filteredData = data.filter(row => row && getGradeKey(row[7]) === selectedGrade);
       }
       
-      const sections = [...new Set(filteredData.map(row => row[7]).filter(Boolean))].sort();
+      const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
       
       let html = '<option value="ALL">All Sections in Grade</option>';
       sections.forEach(sec => {
@@ -279,61 +277,63 @@
         return;
       }
 
-      try {
-        let filtered = cachedLogs.filter(row => {
-          if (!row || row.length < 8) return false;
-          let sectionVal = row[7] || "";
-          let matchesGrade = (selectedGrade === 'ALL' || getGradeKey(sectionVal) === selectedGrade);
-          let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
-          return matchesGrade && matchesSection;
-        });
+      let filtered = cachedLogs.filter(row => {
+        if (!row || row.length < 8) return false;
+        let sectionVal = row[7] || "";
+        let matchesGrade = (selectedGrade === 'ALL' || getGradeKey(sectionVal) === selectedGrade);
+        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
+        return matchesGrade && matchesSection;
+      });
 
-        // Sort chronologically by timestamp (newest scans at the top)
-        filtered.sort((a, b) => {
-          let timeA = a[0] ? new Date(a[0]).getTime() : 0;
-          let timeB = b[0] ? new Date(b[0]).getTime() : 0;
-          return timeB - timeA;
-        });
+      // Sort chronologically by timestamp (newest scans at the top)
+      filtered.sort((a, b) => {
+        let timeA = a && a[0] ? new Date(a[0]).getTime() : 0;
+        let timeB = b && b[0] ? new Date(b[0]).getTime() : 0;
+        return timeB - timeA;
+      });
 
-        document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
-        document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
+      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
 
-        if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
-          return;
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(row => {
+        let nameVal = row[6] || 'Unknown';
+        let idVal = row[1] || '';
+        let locVal = row[2] || '';
+        let methodVal = row[3] || 'Scanned';
+        let sectVal = row[7] || '';
+        let teachVal = row[8] || '';
+        let photoUrl = row[9] || '';
+
+        let visualHtml = '';
+        if (photoUrl && String(photoUrl).startsWith('http')) {
+          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
+        } else {
+          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
+          visualHtml = `<div class="student-initials">${initial}</div>`;
         }
 
-        filtered.forEach(row => {
-          let nameVal = row[6] || 'Unknown';
-          let idVal = row[1] || '';
-          let locVal = row[2] || '';
-          let methodVal = row[3] || 'Scanned';
-          let sectVal = row[7] || '';
-          let teachVal = row[8] || '';
-          let photoUrl = row[9] || '';
+        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
 
-          let visualHtml = '';
-          if (photoUrl && String(photoUrl).startsWith('http')) {
-            visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
-          } else {
-            let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-            visualHtml = `<div class="student-initials">${initial}</div>`;
-          }
-
-          let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
-
-          let tr = document.createElement('tr');
-          tr.innerHTML = '<td>' + studentHtml + '</td>' +
-                         '<td>' + idVal + '</td>' +
-                         '<td>' + locVal + '</td>' +
-                         '<td><span style="background:#e2e8f0; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
-                         '<td>' + sectVal + '</td>' +
-                         '<td>' + teachVal + '</td>';
-          tbody.appendChild(tr);
-        });
-
-      } catch (e) {
-        console.error("Render error:", e);
-        document.getElementById('liveStatus').innerText = '🔴 Error rendering table';
-      }
+        let tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + studentHtml + '</td>' +
+                       '<td>' + idVal + '</td>' +
+                       '<td>' + locVal + '</td>' +
+                       '<td><span style="background:#e2e8f0; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
+                       '<td>' + sectVal + '</td>' +
+                       '<td>' + teachVal + '</td>';
+        tbody.appendChild(tr);
+      });
     }
+
+    window.onload = function() {
+      fetchLogs();
+      setInterval(fetchLogs, 5000);
+    };
+  </script>
+</body>
+</html>
