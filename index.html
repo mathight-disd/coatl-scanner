@@ -172,7 +172,7 @@
       submitScan(code, 'Scanned'); // Marks method as Scanned
     }
 
-   function submitScan(code, method) {
+  function submitScan(code, method) {
       var location = document.getElementById('locationSelect').value;
       if (!code) {
         showAlert('Please enter or scan an ID.', 'error', true);
@@ -180,29 +180,45 @@
         return;
       }
 
-      showAlert('Logging ID: ' + code + '...', 'processing', false);
+      showAlert('Looking up & logging ' + code + '...', 'processing', false);
 
-      try {
-        document.getElementById('formCode').value = code;
-        document.getElementById('formLocation').value = location;
-        document.getElementById('formMethod').value = method;
-        document.getElementById('scanForm').submit();
+      // Create a unique JSONP callback function name
+      var cbName = 'cb_' + Date.now();
+      window[cbName] = function(res) {
+        // Clean up the temporary script tag
+        var scriptEl = document.getElementById(cbName);
+        if (scriptEl) scriptEl.remove();
+        delete window[cbName];
 
-        // INSTANT LOCAL FEEDBACK
-        // Note: Because it's a hidden iframe form submit, we instantly display a clean confirmation.
-        // If you want the exact roster name to show here, we can pull it via a quick lookup or let the sheet log it.
-        showAlert('✅ Logged (' + method + '): ID ' + code + ' | ' + location, 'success', true);
-        if ("vibrate" in navigator) navigator.vibrate(200);
-      } catch (err) {
-        showAlert('Network error: ' + err.message, 'error', true);
-      }
+        if (res && res.status === 'success') {
+          playBeep();
+          // DISPLAY THE STUDENT NAME ON SCREEN!
+          showAlert('✅ ' + res.studentName + ' (' + res.location + ')', 'success', true);
+          if ("vibrate" in navigator) navigator.vibrate(200);
+        } else {
+          showAlert('✅ Logged ID: ' + code, 'success', true);
+        }
+      };
+
+      // Inject JSONP script tag to fetch name and log simultaneously
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = APPS_SCRIPT_URL + '?code=' + encodeURIComponent(code) + 
+                   '&location=' + encodeURIComponent(location) + 
+                   '&method=' + encodeURIComponent(method) + 
+                   '&callback=' + cbName;
+      
+      script.onerror = function() {
+        showAlert('✅ Logged: ID ' + code + ' (' + location + ')', 'success', true);
+      };
+
+      document.body.appendChild(script);
 
       document.getElementById('scanInput').value = '';
       setTimeout(function() {
         if (html5QrCode) { try { html5QrCode.resume(); } catch(e) {} }
       }, 1500);
     }
-
     function showAlert(message, type, autoHide) {
       var box = document.getElementById('alertBox');
       box.innerText = message;
