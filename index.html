@@ -84,19 +84,25 @@
     </div>
   </div>
 
+  <!-- Hidden iframe to handle cross-origin Google Apps Script responses cleanly -->
+  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+  <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
+    <input type="hidden" name="code" id="formCode">
+    <input type="hidden" name="location" id="formLocation">
+  </form>
+
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
     let html5QrCode = null;
     let torchOn = false;
 
-    // Audio Beep Synthesizer (No external audio file needed)
     function playBeep() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // High A note
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
@@ -124,11 +130,7 @@
         verbose: false
       });
 
-      const config = { 
-        fps: 24, 
-        qrbox: { width: 230, height: 230 },
-        disableFlip: false 
-      };
+      const config = { fps: 24, qrbox: { width: 230, height: 230 }, disableFlip: false };
       
       html5QrCode.start(
         { facingMode: "environment" }, 
@@ -165,7 +167,7 @@
         if (match) code = decodeURIComponent(match[1]);
       }
       if (html5QrCode && html5QrCode.isScanning) html5QrCode.pause();
-      playBeep(); // Instant audio feedback!
+      playBeep();
       submitScan(code);
     }
 
@@ -179,17 +181,14 @@
 
       showAlert('Logging ID: ' + code + '...', 'processing', false);
 
+      // If you have a Roster tab set up in your sheet, we can fetch a JSONP/callback or display the lookup match.
+      // For immediate local feedback while it logs in the background:
       try {
-        // Send data to Apps Script backend
-        await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "code=" + encodeURIComponent(code) + "&location=" + encodeURIComponent(location)
-        });
+        document.getElementById('formCode').value = code;
+        document.getElementById('formLocation').value = location;
+        document.getElementById('scanForm').submit();
 
-        // Display confirmation instantly
-        showAlert('✅ Logged: ID ' + code + ' (' + location + ')', 'success', true);
+        showAlert('✅ Logged: ' + code + ' (' + location + ')', 'success', true);
         if ("vibrate" in navigator) navigator.vibrate(200);
       } catch (err) {
         showAlert('Network error: ' + err.message, 'error', true);
