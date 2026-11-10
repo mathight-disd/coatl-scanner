@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <title>Kiest Coatls Parent Pickup Portal</title>
+  <style>
+    :root {
+      --coatl-red: #C8232C;
+      --coatl-navy: #13264E;
+      --coatl-teal: #00A8E8;
+      --coatl-bg: #F4F6F9;
+    }
+    html, body {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background: var(--coatl-bg); font-family: 'Segoe UI', Arial, sans-serif; color: var(--coatl-navy);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .container { 
+      width: 100%; max-width: 480px; background: #ffffff; padding: 20px; 
+      border-radius: 16px; border-top: 10px solid var(--coatl-red); border-bottom: 6px solid var(--coatl-teal);
+      box-shadow: 0 6px 20px rgba(19, 38, 78, 0.15); text-align: center; box-sizing: border-box;
+      margin: auto;
+    }
+    .header-area { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 16px; }
+    .header-area img { max-height: 60px; width: auto; margin-bottom: 8px; border-radius: 50%; object-fit: cover; }
+    h2 { margin: 4px 0; font-size: 20px; text-transform: uppercase; color: var(--coatl-navy); }
+    .form-group { margin-bottom: 16px; text-align: left; }
+    label { display: block; font-weight: 800; font-size: 13px; margin-bottom: 6px; text-transform: uppercase; color: var(--coatl-navy); }
+    input[type="text"], select {
+      width: 100%; padding: 14px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; 
+      font-weight: 700; box-sizing: border-box; color: var(--coatl-navy); background: #f8fafc;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--coatl-teal); outline: none; background: #fff; }
+    .checkin-btn {
+      background: var(--coatl-red); color: #fff; border: none; padding: 18px;
+      font-size: 18px; font-weight: 900; border-radius: 10px; width: 100%; cursor: pointer;
+      text-transform: uppercase; box-shadow: 0 4px 12px rgba(200, 35, 44, 0.3); margin-top: 10px;
+    }
+    .checkin-btn:active { transform: scale(0.98); }
+    #alertBox { margin-top: 16px; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 900; display: none; }
+    .success { background: #e0f7fa; color: #0b4f6c; border: 3px solid var(--coatl-teal); }
+    .error { background: #ffebee; color: var(--coatl-red); border: 3px solid var(--coatl-red); }
+    #studentPreview { margin-top: 8px; font-size: 13px; font-weight: 700; color: #64748b; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-area">
+      <img src="logo.png" alt="Kiest Coatls Logo">
+      <h2>Parent Pickup Check-In</h2>
+      <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800;">Edwin J. Kiest Elementary</div>
+    </div>
+
+    <div class="form-group">
+      <label for="studentInput">Student Name or ID:</label>
+      <input type="text" id="studentInput" placeholder="Start typing student name..." autocomplete="off">
+      <div id="studentPreview"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="locationSelect">Pickup Location / Method:</label>
+      <select id="locationSelect">
+        <option value="Millmar Carline (Back)">Millmar Carline (Back)</option>
+        <option value="Millmar Walkup (Back)">Millmar Walkup (Back)</option>
+        <option value="Healey Carline (Front)">Healey Carline (Front)</option>
+        <option value="Healey Walkup (Front)">Healey Walkup (Front)</option>
+        <option value="Cafeteria">Cafeteria</option>
+      </select>
+    </div>
+
+    <button class="checkin-btn" onclick="submitParentCheckIn()">🚗 Notify Arrival</button>
+
+    <div id="alertBox"></div>
+  </div>
+
+  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+  <form id="checkInForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
+    <input type="hidden" name="code" id="formCode">
+    <input type="hidden" name="location" id="formLocation">
+    <input type="hidden" name="method" id="formMethod">
+    <input type="hidden" name="name" id="formName">
+    <input type="hidden" name="section" id="formSection">
+    <input type="hidden" name="teacher" id="formTeacher">
+  </form>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+    let studentRoster = {};
+    let resolvedCode = "";
+    let resolvedName = "";
+    let resolvedSection = "";
+    let resolvedTeacher = "";
+
+    window.onload = function() {
+      loadRosterJSONP();
+      
+      document.getElementById('studentInput').addEventListener('input', function(e) {
+        let val = e.target.value.trim().toLowerCase();
+        resolvedCode = "";
+        resolvedName = "";
+        resolvedSection = "";
+        resolvedTeacher = "";
+        document.getElementById('studentPreview').innerText = "";
+
+        if (val.length < 2) return;
+
+        for (let code in studentRoster) {
+          let s = studentRoster[code];
+          if (s.name.toLowerCase().includes(val) || String(code) === val) {
+            resolvedCode = code;
+            resolvedName = s.name;
+            resolvedSection = s.section || "";
+            resolvedTeacher = s.teacher || "";
+            document.getElementById('studentPreview').innerText = `Selected: ${s.name} (${s.section || 'Homeroom'})`;
+            break;
+          }
+        }
+      });
+    };
+
+    function loadRosterJSONP() {
+      var cbName = 'roster_cb_' + Date.now();
+      window[cbName] = function(data) {
+        var el = document.getElementById(cbName);
+        if (el) el.remove();
+        delete window[cbName];
+
+        if (Array.isArray(data)) {
+          data.forEach(student => {
+            studentRoster[String(student.id).trim()] = student;
+          });
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName;
+      document.body.appendChild(script);
+    }
+
+    function submitParentCheckIn() {
+      let inputVal = document.getElementById('studentInput').value.trim();
+      let location = document.getElementById('locationSelect').value;
+
+      if (!inputVal) {
+        showAlert("Please enter a student name or ID.", "error");
+        return;
+      }
+
+      // If they typed something but didn't match via live preview, attempt raw lookup
+      if (!resolvedCode) {
+        for (let code in studentRoster) {
+          let s = studentRoster[code];
+          if (s.name.toLowerCase() === inputVal.toLowerCase() || String(code) === inputVal) {
+            resolvedCode = code;
+            resolvedName = s.name;
+            resolvedSection = s.section || "";
+            resolvedTeacher = s.teacher || "";
+            break;
+          }
+        }
+      }
+
+      let finalName = resolvedName || inputVal;
+      let finalCode = resolvedCode || inputVal;
+
+      try {
+        document.getElementById('formCode').value = finalCode;
+        document.getElementById('formLocation').value = location + " (Parent Check-In)";
+        document.getElementById('formMethod').value = "Parent Portal";
+        document.getElementById('formName').value = finalName;
+        document.getElementById('formSection').value = resolvedSection;
+        document.getElementById('formTeacher').value = resolvedTeacher;
+        document.getElementById('checkInForm').submit();
+
+        showAlert("✅ Arrival Noticed! Your student's teacher has been alerted.", "success");
+        document.getElementById('studentInput').value = "";
+        document.getElementById('studentPreview').innerText = "";
+        resolvedCode = "";
+        resolvedName = "";
+      } catch (err) {
+        showAlert("⚠️ Check-in failed to transmit. Please try again.", "error");
+      }
+    }
+
+    function showAlert(message, type) {
+      var box = document.getElementById('alertBox');
+      box.innerText = message;
+      box.className = type;
+      box.style.display = 'block';
+      setTimeout(function() { box.style.display = 'none'; }, 4000);
+    }
+  </script>
+</body>
+</html>
