@@ -41,32 +41,64 @@
     #alertBox { margin-top: 16px; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 900; display: none; }
     .success { background: #e0f7fa; color: #0b4f6c; border: 3px solid var(--coatl-teal); }
     .error { background: #ffebee; color: var(--coatl-red); border: 3px solid var(--coatl-red); }
+
+    /* Pickup Pass Styles */
+    .pass-card {
+      background: #f8fafc; border: 3px solid var(--coatl-teal); border-radius: 12px;
+      padding: 16px; margin-bottom: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0, 168, 232, 0.15);
+    }
+    .student-photo {
+      width: 85px; height: 85px; border-radius: 50%; object-fit: cover;
+      border: 3px solid var(--coatl-red); background: #e2e8f0; margin: 0 auto 10px auto; display: block;
+    }
+    .student-initials {
+      width: 85px; height: 85px; border-radius: 50%; background: var(--coatl-teal);
+      color: white; display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 32px; border: 3px solid var(--coatl-red); margin: 0 auto 10px auto;
+    }
+    .arrived-badge {
+      background: #e0f7fa; color: #0b4f6c; border: 2px solid var(--coatl-teal);
+      padding: 8px; border-radius: 8px; font-weight: 900; font-size: 14px; text-transform: uppercase;
+      margin-top: 12px; display: inline-block; width: 100%; box-sizing: border-box;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header-area">
       <img src="logo.png" alt="Kiest Coatls Logo">
-      <h2>Parent Pickup Check-In</h2>
+      <h2>Parent Pickup Portal</h2>
       <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800;">Edwin J. Kiest Elementary</div>
     </div>
 
-    <div class="form-group" id="inputContainerArea">
-      <div style="text-align: center; color: #64748b; padding: 20px; font-weight: 600;" id="loadingText">Authenticating family token...</div>
+    <!-- Interactive Form View -->
+    <div id="portalFormView">
+      <div class="form-group" id="inputContainerArea">
+        <div style="text-align: center; color: #64748b; padding: 20px; font-weight: 600;">Authenticating family token...</div>
+      </div>
+
+      <div class="form-group">
+        <label for="locationSelect">Pickup Location / Method:</label>
+        <select id="locationSelect">
+          <option value="Millmar Carline (Back)">Millmar Carline (Back)</option>
+          <option value="Millmar Walkup (Back)">Millmar Walkup (Back)</option>
+          <option value="Healey Carline (Front)">Healey Carline (Front)</option>
+          <option value="Healey Walkup (Front)">Healey Walkup (Front)</option>
+          <option value="Cafeteria">Cafeteria</option>
+        </select>
+      </div>
+
+      <button class="checkin-btn" onclick="submitParentCheckIn()" id="submitBtn" style="display:none;">🚗 Notify Arrival</button>
     </div>
 
-    <div class="form-group">
-      <label for="locationSelect">Pickup Location / Method:</label>
-      <select id="locationSelect">
-        <option value="Millmar Carline (Back)">Millmar Carline (Back)</option>
-        <option value="Millmar Walkup (Back)">Millmar Walkup (Back)</option>
-        <option value="Healey Carline (Front)">Healey Carline (Front)</option>
-        <option value="Healey Walkup (Front)">Healey Walkup (Front)</option>
-        <option value="Cafeteria">Cafeteria</option>
-      </select>
+    <!-- Verified Pass Display View (Hidden initially) -->
+    <div id="portalPassView" style="display: none;">
+      <div style="background: #13264E; color: white; padding: 10px; border-radius: 8px; font-weight: 900; font-size: 14px; text-transform: uppercase; margin-bottom: 14px;">
+        ✅ Arrival Confirmed
+      </div>
+      <div id="passCardsContainer"></div>
+      <button class="checkin-btn" onclick="resetPortalView()" style="background: var(--coatl-navy); margin-top: 10px; font-size: 14px; padding: 12px;">Change Location / Students</button>
     </div>
-
-    <button class="checkin-btn" onclick="submitParentCheckIn()" id="submitBtn" style="display:none;">🚗 Notify Arrival</button>
 
     <div id="alertBox"></div>
   </div>
@@ -158,13 +190,16 @@
     function submitParentCheckIn() {
       let checkboxes = document.querySelectorAll('.student-checkbox');
       let selectedCount = 0;
+      let passHtml = '';
+      let location = document.getElementById('locationSelect').value;
 
       checkboxes.forEach(chk => {
         if (chk.checked) {
           let idx = chk.getAttribute('data-index');
           let st = matchedStudentsList[idx];
-          let location = document.getElementById('locationSelect').value;
+          selectedCount++;
 
+          // Submit check-in to Google Sheet backend
           try {
             document.getElementById('formCode').value = st.id;
             document.getElementById('formLocation').value = location + " (Parent Check-In)";
@@ -173,10 +208,29 @@
             document.getElementById('formSection').value = st.section || "";
             document.getElementById('formTeacher').value = st.teacher || "";
             document.getElementById('checkInForm').submit();
-            selectedCount++;
           } catch (err) {
             console.error("Submission error:", err);
           }
+
+          // Build visual pass card (supports photo URL from sheet or initials fallback)
+          let photoUrl = st.photo || st.photoUrl || '';
+          let visualHtml = '';
+          if (photoUrl && String(photoUrl).startsWith('http')) {
+            visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${st.name}">`;
+          } else {
+            let initial = st.name && st.name.charAt(0) !== 'U' ? st.name.charAt(0) : '?';
+            visualHtml = `<div class="student-initials">${initial}</div>`;
+          }
+
+          passHtml += `
+            <div class="pass-card">
+              ${visualHtml}
+              <div style="font-size: 18px; font-weight: 900; color: var(--coatl-navy);">${st.name}</div>
+              <div style="font-size: 13px; color: #64748b; font-weight: 700; margin-top: 2px;">Homeroom: ${st.section || 'General'}</div>
+              <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 4px;">Teacher: ${st.teacher || 'Staff'}</div>
+              <div class="arrived-badge">📍 ${location}</div>
+            </div>
+          `;
         }
       });
 
@@ -185,7 +239,15 @@
         return;
       }
 
-      showAlert("✅ Arrival Noticed! Your student's teacher has been alerted.", "success");
+      // Switch view from form to active pickup pass
+      document.getElementById('portalFormView').style.display = 'none';
+      document.getElementById('passCardsContainer').innerHTML = passHtml;
+      document.getElementById('portalPassView').style.display = 'block';
+    }
+
+    function resetPortalView() {
+      document.getElementById('portalPassView').style.display = 'none';
+      document.getElementById('portalFormView').style.display = 'block';
     }
 
     function showAlert(message, type) {
