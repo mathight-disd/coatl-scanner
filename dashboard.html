@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0">
-  <title>Kiest Coatls Teacher Dashboard</title>
+  <title>Edwin J. Kiest Coatls - Teacher Dashboard</title>
   <style>
     :root {
       --coatl-red: #C8232C;
       --coatl-navy: #13264E;
       --coatl-teal: #00A8E8;
       --coatl-bg: #F4F6F9;
+      --coatl-card-bg: #FFFFFF;
     }
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -20,11 +21,11 @@
     }
     .container { max-width: 1050px; margin: auto; }
     .header {
-      background: #ffffff;
-      padding: 15px 20px;
+      background: var(--coatl-card-bg);
+      padding: 18px 22px;
       border-radius: 12px;
       border-top: 8px solid var(--coatl-red);
-      box-shadow: 0 4px 12px rgba(19, 38, 78, 0.1);
+      box-shadow: 0 4px 15px rgba(19, 38, 78, 0.08);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -47,29 +48,32 @@
       align-items: center;
       justify-content: center;
       font-weight: 900;
-      font-size: 20px;
+      font-size: 22px;
       border: 2px solid var(--coatl-red);
+      box-shadow: 0 2px 8px rgba(200, 35, 44, 0.3);
     }
     h2 { margin: 0; color: var(--coatl-navy); text-transform: uppercase; font-size: 20px; letter-spacing: 0.5px; }
     .status-badge {
       background: #e0f7fa; color: #0b4f6c; padding: 6px 14px;
       border-radius: 20px; font-weight: 700; font-size: 13px;
+      border: 1px solid #b2ebf2;
     }
     .controls-bar {
-      background: #ffffff;
-      padding: 12px 20px;
+      background: var(--coatl-card-bg);
+      padding: 15px 20px;
       border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(19, 38, 78, 0.1);
+      box-shadow: 0 4px 15px rgba(19, 38, 78, 0.08);
       margin-bottom: 20px;
       display: flex;
       gap: 20px;
       align-items: center;
       flex-wrap: wrap;
+      border-left: 6px solid var(--coatl-teal);
     }
-    .control-group { display: flex; flex-direction: column; gap: 4px; }
-    .controls-bar label { font-weight: 700; font-size: 12px; text-transform: uppercase; color: var(--coatl-navy); }
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    .controls-bar label { font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--coatl-navy); letter-spacing: 0.5px; }
     .controls-bar select {
-      padding: 8px 12px;
+      padding: 9px 14px;
       border-radius: 6px;
       border: 1px solid #cbd5e1;
       font-size: 14px;
@@ -77,13 +81,18 @@
       background: #f8fafc;
       color: var(--coatl-navy);
       font-weight: 600;
-      min-width: 180px;
+      min-width: 200px;
+      cursor: pointer;
+    }
+    .controls-bar select:focus {
+      border-color: var(--coatl-teal);
+      box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.15);
     }
     .table-container {
-      background: #ffffff;
+      background: var(--coatl-card-bg);
       border-radius: 12px;
       overflow-x: auto;
-      box-shadow: 0 4px 12px rgba(19, 38, 78, 0.1);
+      box-shadow: 0 4px 15px rgba(19, 38, 78, 0.08);
       border-bottom: 6px solid var(--coatl-teal);
     }
     table {
@@ -95,13 +104,14 @@
     th {
       background: var(--coatl-navy);
       color: #ffffff;
-      padding: 12px 14px;
+      padding: 14px 16px;
       font-weight: 700;
       text-transform: uppercase;
       font-size: 12px;
+      letter-spacing: 0.5px;
     }
     td {
-      padding: 12px 14px;
+      padding: 12px 16px;
       border-bottom: 1px solid #e2e8f0;
       color: #334155;
       font-weight: 600;
@@ -115,8 +125,8 @@
       gap: 12px;
     }
     .student-photo {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       object-fit: cover;
       border: 2px solid var(--coatl-teal);
@@ -124,8 +134,8 @@
       flex-shrink: 0;
     }
     .student-initials {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       background: var(--coatl-teal);
       color: white;
@@ -133,7 +143,7 @@
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      font-size: 14px;
+      font-size: 15px;
       flex-shrink: 0;
     }
   </style>
@@ -151,12 +161,21 @@
       <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
     </div>
 
-    <!-- Two-Tier Cascading Filter Bar with 7A & Harry Stone Support -->
+    <!-- Filter Control Bar -->
     <div class="controls-bar">
       <div class="control-group">
-        <label for="gradeFilter">1. Select Grade Level / Group:</label>
+        <label for="gradeFilter">1. Select Grade Level:</label>
         <select id="gradeFilter" onchange="onGradeChange()">
-          <option value="ALL">All Grades (Entire Campus)</option>
+          <option value="ALL">ALL Students</option>
+          <option value="Pre-K">Pre-K</option>
+          <option value="Kinder">Kinder</option>
+          <option value="1st Grade">1st Grade</option>
+          <option value="2nd Grade">2nd Grade</option>
+          <option value="3rd Grade">3rd Grade</option>
+          <option value="4th Grade">4th Grade</option>
+          <option value="5th Grade">5th Grade</option>
+          <option value="6th Grade">6th Grade</option>
+          <option value="FLS & TC">FLS & TC</option>
         </select>
       </div>
 
@@ -199,7 +218,6 @@
         .then(response => response.json())
         .then(data => {
           cachedLogs = Array.isArray(data) ? data : [];
-          updateGradeDropdown(cachedLogs);
           updateSectionDropdown(cachedLogs);
           renderTable();
         })
@@ -209,44 +227,66 @@
         });
     }
 
-  // Grade & Group parser with universal 7A rule and strict isolation
-    function getGradeKey(sectionStr) {
-      if (!sectionStr) return "Other";
+    // Helper to determine all valid grades a section belongs to (supporting split levels and 7A rule)
+    function getSectionGrades(sectionStr) {
+      if (!sectionStr) return ["Other"];
       let s = String(sectionStr).trim();
       let upperS = s.toUpperCase();
+      let grades = [];
 
-      // Universal Rule: "7A" shows up everywhere/all groups
-      if (upperS === "7A" || upperS.includes("7A")) return "All / 7A Universal";
+      // Universal 7A Rule: Appears everywhere
+      if (upperS === "7A" || upperS.includes("7A")) {
+        return ["Pre-K", "Kinder", "1st Grade", "2nd Grade", "3rd Grade", "4th Grade", "5th Grade", "6th Grade", "FLS & TC"];
+      }
 
-      // Specialized Units (FLS, TC, Pre-K / Early Childhood)
-      if (upperS.includes("FLS")) return "FLS Units";
-      if (upperS.includes("TC")) return "TC Units";
-      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) return "Pre-K";
-      if (upperS.includes("HARRY STONE")) return "Harry Stone";
+      // Specialized Units
+      if (upperS.includes("FLS") || upperS.includes("TC")) {
+        return ["FLS & TC"];
+      }
 
-      // Standard Grade Levels
-      if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) return "Kindergarten";
-      if (upperS.startsWith("1") || upperS.includes("1ST")) return "1st Grade";
-      if (upperS.startsWith("2") || upperS.includes("2ND")) return "2nd Grade";
-      if (upperS.startsWith("3") || upperS.includes("3RD")) return "3rd Grade";
-      if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) return "4th Grade";
-      if (upperS.startsWith("5") || upperS.startsWith("6") || upperS.includes("5TH") || upperS.includes("6TH")) return "5th / 6th Grade";
+      // Pre-K
+      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) {
+        return ["Pre-K"];
+      }
 
-      return s; 
-    }
-    function updateGradeDropdown(data) {
-      const select = document.getElementById('gradeFilter');
-      const currentSelection = select.value;
-      
-      const grades = [...new Set(data.map(row => getGradeKey(row ? row[7] : "")).filter(Boolean))].sort();
-      
-      let html = '<option value="ALL">All Grades (Entire Campus)</option>';
-      grades.forEach(g => {
-        html += `<option value="${g}">${g}</option>`;
-      });
-      
-      select.innerHTML = html;
-      select.value = grades.includes(currentSelection) ? currentSelection : 'ALL';
+      // Kinder
+      if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) {
+        return ["Kinder"];
+      }
+
+      // 1st Grade
+      if (upperS.startsWith("1") || upperS.includes("1ST")) {
+        return ["1st Grade"];
+      }
+
+      // 2nd Grade
+      if (upperS.startsWith("2") || upperS.includes("2ND")) {
+        return ["2nd Grade"];
+      }
+
+      // 3rd Grade (Split level: 3A and 3B also show in 4th Grade)
+      if (upperS.startsWith("3") || upperS.includes("3RD")) {
+        grades.push("3rd Grade");
+        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) {
+          grades.push("4th Grade");
+        }
+        return grades;
+      }
+
+      // 4th Grade (Split level: 4A and 4B also show in 3rd Grade)
+      if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
+        grades.push("4th Grade");
+        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A") || upperS.includes("4B")) {
+          grades.push("3rd Grade");
+        }
+        return grades;
+      }
+
+      // 5th & 6th Grade
+      if (upperS.startsWith("5") || upperS.includes("5TH")) return ["5th Grade"];
+      if (upperS.startsWith("6") || upperS.includes("6TH")) return ["6th Grade"];
+
+      return [s];
     }
 
     function onGradeChange() {
@@ -261,12 +301,16 @@
       
       let filteredData = data;
       if (selectedGrade !== 'ALL') {
-        filteredData = data.filter(row => row && getGradeKey(row[7]) === selectedGrade);
+        filteredData = data.filter(row => {
+          if (!row || !row[7]) return false;
+          let grades = getSectionGrades(row[7]);
+          return grades.includes(selectedGrade);
+        });
       }
       
       const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
       
-      let html = '<option value="ALL">All Sections in Grade</option>';
+      let html = '<option value="ALL">All Sections</option>';
       sections.forEach(sec => {
         html += `<option value="${sec}">${sec}</option>`;
       });
@@ -291,12 +335,14 @@
       let filtered = cachedLogs.filter(row => {
         if (!row || row.length < 8) return false;
         let sectionVal = row[7] || "";
-        let matchesGrade = (selectedGrade === 'ALL' || getGradeKey(sectionVal) === selectedGrade);
+        let studentGrades = getSectionGrades(sectionVal);
+
+        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
         let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
         return matchesGrade && matchesSection;
       });
 
-      // Sort chronologically with bulletproof date parsing (fixed getTime call)
+      // Sort chronologically (newest scans at the top)
       filtered.sort((a, b) => {
         let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
         let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
