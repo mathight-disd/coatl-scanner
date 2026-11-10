@@ -24,7 +24,7 @@
       display: flex; flex-direction: column; justify-content: space-between; margin: auto;
     }
     .header-area { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 4px; }
-    .header-area img { max-height: 60px; width: auto; margin-bottom: 4px; }
+    .header-area img { max-height: 55px; width: auto; margin-bottom: 4px; }
     h2 { margin: 2px 0; font-size: 19px; text-transform: uppercase; color: var(--coatl-navy); }
     .start-cam-btn {
       background: var(--coatl-teal); color: #fff; border: none; padding: 18px;
@@ -76,12 +76,13 @@
 
     <div id="alertBox"></div>
 
-    <div>
-      <label for="scanInput" style="text-align:left; display:block; font-weight:800; font-size:14px; margin-bottom:3px;">Or Type Student ID:</label>
+    <div style="position: relative;">
+      <label for="scanInput" style="text-align:left; display:block; font-weight:800; font-size:14px; margin-bottom:3px;">Or Type Student Name / ID:</label>
       <div class="manual-row">
-        <input type="text" id="scanInput" placeholder="ID..." autocomplete="off">
-        <button class="submit-btn" onclick="submitScan(document.getElementById('scanInput').value.trim(), 'Typed')">Submit</button>
+        <input type="text" id="scanInput" placeholder="Type student name or ID..." autocomplete="off" oninput="handleTypingInput(this.value)">
+        <button class="submit-btn" onclick="submitTypedSelection()">Submit</button>
       </div>
+      <div id="autocompleteList" style="position: absolute; bottom: 100%; left: 0; right: 0; background: white; border: 2px solid #cbd5e1; border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 -4px 12px rgba(0,0,0,0.15); margin-bottom: 4px;"></div>
     </div>
   </div>
 
@@ -101,6 +102,7 @@
     let isProcessingScan = false;
     let videoStream = null;
     let scanInterval = null;
+    let selectedStudentCode = null;
 
     window.onload = function() {
       var savedLoc = localStorage.getItem('coatl_dismissal_loc');
@@ -108,7 +110,7 @@
 
       var input = document.getElementById('scanInput');
       input.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') submitScan(input.value.trim(), 'Typed');
+        if (e.key === 'Enter') submitTypedSelection();
       });
 
       loadRosterJSONP();
@@ -137,6 +139,72 @@
         document.getElementById('rosterStatus').innerText = '⚠️ Roster offline (using ID fallback)';
       };
       document.body.appendChild(script);
+    }
+
+    function handleTypingInput(query) {
+      const listEl = document.getElementById('autocompleteList');
+      selectedStudentCode = null;
+      
+      if (!query || query.trim().length < 2) {
+        listEl.style.display = 'none';
+        return;
+      }
+
+      const q = query.toLowerCase().trim();
+      let matches = [];
+
+      for (let code in studentRoster) {
+        let student = studentRoster[code];
+        let name = (student.name || '').toLowerCase();
+        let idStr = String(code).toLowerCase();
+        
+        if (name.includes(q) || idStr.includes(q)) {
+          matches.push({ code: code, student: student });
+          if (matches.length >= 8) break;
+        }
+      }
+
+      if (matches.length === 0) {
+        listEl.style.display = 'none';
+        return;
+      }
+
+      let html = '';
+      matches.forEach(item => {
+        let s = item.student;
+        let safeName = s.name.replace(/'/g, "\\'");
+        html += `<div onclick="selectStudentFromDropdown('${item.code}', '${safeName}')" style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 700; text-align: left; color: var(--coatl-navy);">
+          ${s.name} <span style="font-weight: 400; color: #64748b; font-size: 12px;">(${s.section || 'ID: ' + item.code})</span>
+        </div>`;
+      });
+
+      listEl.innerHTML = html;
+      listEl.style.display = 'block';
+    }
+
+    function selectStudentFromDropdown(code, name) {
+      document.getElementById('scanInput').value = name;
+      document.getElementById('autocompleteList').style.display = 'none';
+      selectedStudentCode = code;
+    }
+
+    function submitTypedSelection() {
+      const inputVal = document.getElementById('scanInput').value.trim();
+      document.getElementById('autocompleteList').style.display = 'none';
+
+      if (selectedStudentCode) {
+        submitScan(selectedStudentCode, 'Typed (Selected)');
+        selectedStudentCode = null;
+      } else if (inputVal) {
+        let foundCode = inputVal;
+        for (let code in studentRoster) {
+          if (studentRoster[code].name.toLowerCase() === inputVal.toLowerCase()) {
+            foundCode = code;
+            break;
+          }
+        }
+        submitScan(foundCode, 'Typed');
+      }
     }
 
     function playBeep() {
