@@ -288,10 +288,12 @@
         return matchesGrade && matchesSection;
       });
 
-      // Sort chronologically with bulletproof date parsing
+      // Sort chronologically with bulletproof date parsing (fixed getTime call)
       filtered.sort((a, b) => {
-        let timeA = (a && a[0] && !isNaN(new Date(a[0]).getTime())) ? new Date(a[0]).getTime() : 0;
-        let timeB = (b && b[0] && !isNaN(new Date(b[0]).getTime())) ? new Date(b[0]).getTime() : 0;
+        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
+        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
+        if (isNaN(timeA)) timeA = 0;
+        if (isNaN(timeB)) timeB = 0;
         return timeB - timeA;
       });
 
