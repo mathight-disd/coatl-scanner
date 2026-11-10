@@ -185,6 +185,18 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      // Boost contrast and sharpen grayscale for stubborn iOS video streams
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        // High-contrast thresholding to make QR black-and-white grid pop
+        let v = avg < 120 ? 0 : 255;
+        data[i] = v;     // R
+        data[i + 1] = v; // G
+        data[i + 2] = v; // B
+      }
+
       canvas.remove();
 
       try {
