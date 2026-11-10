@@ -209,23 +209,28 @@
         });
     }
 
-    // Explicit Grade / Group parser including 7A and Harry Stone rules
+    // Exact section-to-grade mapping dictionary with strict FLS/TC/Pre-K isolation
     function getGradeKey(sectionStr) {
       if (!sectionStr) return "Other";
-      let s = String(sectionStr).trim().toUpperCase();
-      
-      if (s.includes("HARRY STONE")) return "Harry Stone";
-      if (s.includes("7A") || s.includes("PK") || s.includes("PRE-K")) return "Pre-K / 7A";
-      if (s.includes("K") || s.startsWith("KG") || s.startsWith("K-")) return "Kindergarten";
-      if (s.startsWith("1")) return "1st Grade";
-      if (s.startsWith("2")) return "2nd Grade";
-      if (s.startsWith("3")) return "3rd Grade";
-      if (s.startsWith("4")) return "4th Grade";
-      if (s.startsWith("5")) return "5th Grade";
-      if (s.startsWith("6")) return "6th Grade";
-      return s;
-    }
+      let s = String(sectionStr).trim();
+      let upperS = s.toUpperCase();
 
+      // 1. Strict Isolation for Specialized Units (FLS, TC, Pre-K, 7A, Harry Stone)
+      if (upperS.includes("FLS")) return "FLS Units";
+      if (upperS.includes("TC")) return "TC Units";
+      if (upperS.includes("PK") || upperS.includes("PRE-K") || upperS === "7A" || upperS.includes("7A")) return "Pre-K / 7A";
+      if (upperS.includes("HARRY STONE")) return "Harry Stone";
+
+      // 2. Standard Grade Levels (Checked by exact prefix / identifier to prevent cross-contamination)
+      if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) return "Kindergarten";
+      if (upperS.startsWith("1") || upperS.includes("1ST")) return "1st Grade";
+      if (upperS.startsWith("2") || upperS.includes("2ND")) return "2nd Grade";
+      if (upperS.startsWith("3") || upperS.includes("3RD")) return "3rd Grade";
+      if (upperS.startsWith("4") || upperS.includes("4TH")) return "4th Grade";
+      if (upperS.startsWith("5") || upperS.startsWith("6") || upperS.includes("5TH") || upperS.includes("6TH")) return "5th / 6th Grade";
+
+      return s; // Exact fallback for any other unique section name
+    }
     function updateGradeDropdown(data) {
       const select = document.getElementById('gradeFilter');
       const currentSelection = select.value;
