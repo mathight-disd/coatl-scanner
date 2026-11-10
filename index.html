@@ -252,35 +252,28 @@
       let studentName = student ? student.name : ("ID: " + code);
       let section = student ? student.section : "";
       let teacher = student ? student.teacher : "";
+      var location = document.getElementById('locationSelect').value;
 
-      showAlert('✅ ' + studentName + ' (' + document.getElementById('locationSelect').value + ')', 'success', true);
+      showAlert('✅ ' + studentName + ' (' + location + ')', 'success', true);
       if ("vibrate" in navigator) navigator.vibrate(200);
 
-      // Use fetch() instead of a hidden form submit to ensure reliable async error recovery without freezing iOS WebKit threads
-      var location = document.getElementById('locationSelect').value;
-      var params = new URLSearchParams();
-      params.append('code', code);
-      params.append('location', location);
-      params.append('method', method);
-      params.append('name', studentName);
-      params.append('section', section);
-      params.append('teacher', teacher);
+      try {
+        document.getElementById('formCode').value = code;
+        document.getElementById('formLocation').value = location;
+        document.getElementById('formMethod').value = method;
+        document.getElementById('formName').value = studentName;
+        document.getElementById('formSection').value = section;
+        document.getElementById('formTeacher').value = teacher;
+        document.getElementById('scanForm').submit();
+      } catch (err) {
+        console.error("Form submit error:", err);
+      }
 
-      fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: params
-      }).then(() => {
-        // Success cleanup
-      }).catch(err => {
-        console.error("Network submit error:", err);
-      }).finally(() => {
-        document.getElementById('scanInput').value = '';
-        setTimeout(function() {
-          isProcessingScan = false;
-        }, 1200);
-      });
+      document.getElementById('scanInput').value = '';
+      setTimeout(function() {
+        isProcessingScan = false;
+        if (html5QrCode && html5QrCode.isScanning) {
+          try { html5QrCode.resume(); } catch(e) {}
+        }
+      }, 1500);
     }
-  </script>
-</body>
-</html>
