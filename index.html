@@ -73,7 +73,7 @@
 
     <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
     
-    <!-- iOS Native Camera Photo Fallback -->
+    <!-- iOS Native Camera Snapshot Mode (Guaranteed instant scan on iPhones) -->
     <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleIOSPhotoCapture(event)">
     <label for="iosCameraInput" id="iosFallbackBtn" class="start-cam-btn" style="background:#13264E; display:none;">📸 Tap to Snap Badge (iOS Mode)</label>
 
@@ -163,26 +163,25 @@
 
     async function initCamera() {
       document.getElementById('startBtn').style.display = 'none';
-      document.getElementById('reader').style.display = 'block';
 
+      // Detect if user is on iOS — immediately unveil the lightning-fast snapshot button
+      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isIOS) {
+        document.getElementById('iosFallbackBtn').style.display = 'block';
+        showAlert("iOS Camera Mode: Tap the dark blue button to snap badges instantly!", "processing", false);
+        return;
+      }
+
+      // Android / Desktop live viewfinder stream
+      document.getElementById('reader').style.display = 'block';
       if (!html5QrCode) {
         html5QrCode = new Html5Qrcode("reader", { verbose: false });
       }
 
-      const config = { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      };
+      const config = { fps: 15, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 };
       
       try {
-        await html5QrCode.start(
-          { facingMode: "environment" }, 
-          config, 
-          onScanSuccess,
-          function(error) {}
-        );
-
+        await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, function(error) {});
         try {
           const cap = html5QrCode.getRunningTrackCameraCapabilities();
           if (cap && cap.torchFeature && cap.torchFeature().isSupported()) {
@@ -192,7 +191,7 @@
       } catch (err) {
         document.getElementById('reader').style.display = 'none';
         document.getElementById('iosFallbackBtn').style.display = 'block';
-        showAlert("Live stream restricted on this iOS browser. Tap the dark blue button to snap badges!", "processing", false);
+        showAlert("Live stream restricted. Use the dark blue button to snap badges!", "processing", false);
       }
     }
 
