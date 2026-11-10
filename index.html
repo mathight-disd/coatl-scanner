@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
   <title>Kiest Coatls Live Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
@@ -32,16 +31,12 @@
       text-transform: uppercase; margin-bottom: 6px; display: block; box-sizing: border-box;
       box-shadow: 0 3px 10px rgba(0, 168, 232, 0.3);
     }
-    .torch-btn {
-      background: var(--coatl-navy); color: #fff; border: none; padding: 8px 14px;
-      font-size: 13px; font-weight: 800; border-radius: 6px; cursor: pointer;
-      margin: 4px auto; display: none;
-    }
-    #reader {
+    #videoContainer {
       width: 100%; max-height: 250px; border-radius: 10px; overflow: hidden;
       border: 3px solid var(--coatl-teal); background: #000; margin: 2px auto; display: none;
+      position: relative;
     }
-    #reader video { width: 100% !important; height: 230px !important; object-fit: cover !important; }
+    #scannerVideo { width: 100%; height: 230px; object-fit: cover; display: block; }
     .manual-row { display: flex; gap: 6px; }
     input[type="text"] { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; font-weight: 700; }
     .submit-btn { background: var(--coatl-red); color: #fff; border: none; padding: 0 18px; font-size: 15px; border-radius: 8px; font-weight: 900; text-transform: uppercase; }
@@ -73,12 +68,9 @@
 
     <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
     
-    <!-- iOS Native Camera Snapshot Mode (Guaranteed instant scan on iPhones) -->
-    <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleIOSPhotoCapture(event)">
-    <label for="iosCameraInput" id="iosFallbackBtn" class="start-cam-btn" style="background:#13264E; display:none;">📸 Tap to Snap Badge (iOS Mode)</label>
-
-    <div id="reader"></div>
-    <button class="torch-btn" id="torchBtn" onclick="toggleTorch()">🔦 Toggle Flashlight</button>
+    <div id="videoContainer">
+      <video id="scannerVideo" playsinline autoplay muted></video>
+    </div>
 
     <div id="alertBox"></div>
 
@@ -91,7 +83,6 @@
     </div>
   </div>
 
-  <!-- Hidden form iframe target to submit scans reliably without CORS blocks -->
   <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
   <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
     <input type="hidden" name="code" id="formCode">
@@ -104,10 +95,10 @@
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
-    let html5QrCode = null;
-    let torchOn = false;
     let studentRoster = {};
     let isProcessingScan = false;
+    let videoStream = null;
+    let scanInterval = null;
 
     window.onload = function() {
       var savedLoc = localStorage.getItem('coatl_dismissal_loc');
@@ -163,112 +154,55 @@
 
     async function initCamera() {
       document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('videoContainer').style.display = 'block';
 
-      // Detect if user is on iOS — immediately unveil the lightning-fast snapshot button
-      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      if (isIOS) {
-        document.getElementById('iosFallbackBtn').style.display = 'block';
-        showAlert("iOS Camera Mode: Tap the dark blue button to snap badges instantly!", "processing", false);
-        return;
-      }
+      const videoElement = document.getElementById('scannerVideo');
 
-      // Android / Desktop live viewfinder stream
-      document.getElementById('reader').style.display = 'block';
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("reader", { verbose: false });
-      }
-
-      const config = { fps: 15, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 };
-      
       try {
-        await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, function(error) {});
-        try {
-          const cap = html5QrCode.getRunningTrackCameraCapabilities();
-          if (cap && cap.torchFeature && cap.torchFeature().isSupported()) {
-            document.getElementById('torchBtn').style.display = 'inline-block';
-          }
-        } catch(e) {}
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        videoElement.srcObject = videoStream;
+        videoElement.setAttribute('playsinline', true);
+        await videoElement.play();
+
+        // Start continuous scanning loop
+        scanInterval = setInterval(() => scanVideoFrame(videoElement), 150);
       } catch (err) {
-        document.getElementById('reader').style.display = 'none';
-        document.getElementById('iosFallbackBtn').style.display = 'block';
-        showAlert("Live stream restricted. Use the dark blue button to snap badges!", "processing", false);
+        showAlert("Camera access restricted. Check browser permissions.", "error", true);
+        document.getElementById('startBtn').style.display = 'block';
+        document.getElementById('videoContainer').style.display = 'none';
       }
     }
 
-    function toggleTorch() {
-      if (!html5QrCode) return;
+    function scanVideoFrame(video) {
+      if (isProcessingScan || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      canvas.remove();
+
       try {
-        const cap = html5QrCode.getRunningTrackCameraCapabilities();
-        torchOn = !torchOn;
-        cap.torchFeature().apply(torchOn);
-      } catch(e) {}
-    }
-
-    function onScanSuccess(decodedText) {
-      if (isProcessingScan) return;
-      let code = decodedText.trim();
-      if (code.includes('code=')) {
-        var match = code.match(/[?&]code=([^&]+)/);
-        if (match) code = decodeURIComponent(match[1]);
-      }
-      submitScan(code, 'Scanned');
-    }
-
-    async function handleIOSPhotoCapture(event) {
-      var file = event.target.files[0];
-      if (!file) return;
-      showAlert("Reading badge...", "processing", false);
-
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = async () => {
-        URL.revokeObjectURL(url);
-        
-        // Scale down large photos to max 800px width/height for lightning-fast, reliable QR decoding
-        const MAX_DIM = 800;
-        let w = img.width;
-        let h = img.height;
-        if (w > MAX_DIM || h > MAX_DIM) {
-          if (w > h) {
-            h = Math.round((h * MAX_DIM) / w);
-            w = MAX_DIM;
-          } else {
-            w = Math.round((w * MAX_DIM) / h);
-            h = MAX_DIM;
+        const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
+        if (code && code.data) {
+          let rawData = code.data.trim();
+          if (rawData.includes('code=')) {
+            var match = rawData.match(/[?&]code=([^&]+)/);
+            if (match) rawData = decodeURIComponent(match[1]);
           }
+          submitScan(rawData, 'Scanned');
         }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = w; 
-        canvas.height = h;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, w, h);
-        const imgData = ctx.getImageData(0, 0, w, h);
-        
-        let code = null;
-        try {
-          const res = jsQR(imgData.data, w, h, { inversionAttempts: "attemptBoth" });
-          if (res && res.data) code = res.data.trim();
-        } catch(e) {}
-
-        canvas.remove();
-        event.target.value = '';
-
-        if (code) {
-          submitScan(code, 'Scanned');
-        } else {
-          showAlert("Could not read QR. Try holding steady without glare.", "error", true);
-        }
-      };
-      img.src = url;
+      } catch (e) {}
     }
 
     function submitScan(code, method) {
       if (isProcessingScan) return;
-      if (!code) {
-        showAlert('Please enter or scan an ID.', 'error', true);
-        return;
-      }
+      if (!code) return;
 
       isProcessingScan = true;
       playBeep();
@@ -295,11 +229,10 @@
       }
 
       document.getElementById('scanInput').value = '';
+      
+      // Brief pause before allowing next scan to prevent duplicate triggers
       setTimeout(function() {
         isProcessingScan = false;
-        if (html5QrCode && html5QrCode.isScanning) {
-          try { html5QrCode.resume(); } catch(e) {}
-        }
       }, 1500);
     }
 
