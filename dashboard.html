@@ -271,7 +271,7 @@
       // Split level 3rd & 4th grade cross-listing
       if (upperS.startsWith("3") || upperS.includes("3RD")) {
         grades.push("3rd Grade");
-        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) grades.push("4th Grade");
+        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A" ) || upperS.includes("3B")) grades.push("4th Grade");
         return grades;
       }
       if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
@@ -284,16 +284,6 @@
       if (upperS.startsWith("6") || upperS.includes("6TH")) return ["6th Grade"];
 
       return [s];
-    }
-
-    // Pastel color generator hashing function for section tags
-    function getPastelColor(str) {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      let h = Math.abs(hash) % 360;
-      return `hsl(${h}, 75%`, 90%);` // Pastel lightness
     }
 
     // Generate consistent pastel background & text color based on section name
@@ -360,23 +350,34 @@
         return;
       }
 
-      let filtered = cachedLogs.filter(row => {
-        if (!row || row.length < 8) return false;
+      // 1. Sort all raw logs chronologically (newest first)
+      let sortedLogs = [...cachedLogs].sort((a, b) => {
+        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
+        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
+        if (isNaN(timeA)) timeA = 0;
+        if (isNaN(timeB)) timeB = 0;
+        return timeB - timeA;
+      });
+
+      // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID (Col B / row[1])
+      let uniqueMap = new Map();
+      sortedLogs.forEach(row => {
+        if (!row || row.length < 8) return;
+        let studentId = String(row[1] || '').trim();
+        if (studentId && !uniqueMap.has(studentId)) {
+          uniqueMap.set(studentId, row);
+        }
+      });
+      let deduplicatedLogs = Array.from(uniqueMap.values());
+
+      // 3. Filter by Grade and Section
+      let filtered = deduplicatedLogs.filter(row => {
         let sectionVal = row[7] || "";
         let studentGrades = getSectionGrades(sectionVal);
 
         let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
         let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
         return matchesGrade && matchesSection;
-      });
-
-      // Sort chronologically (newest scans at the top)
-      filtered.sort((a, b) => {
-        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
-        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
-        if (isNaN(timeA)) timeA = 0;
-        if (isNaN(timeB)) timeB = 0;
-        return timeB - timeA;
       });
 
       document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
