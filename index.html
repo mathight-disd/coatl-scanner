@@ -23,7 +23,8 @@
       box-shadow: 0 6px 20px rgba(19, 38, 78, 0.15); text-align: center; box-sizing: border-box;
       display: flex; flex-direction: column; justify-content: space-between; margin: auto;
     }
-    .header-area { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .header-area { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 4px; }
+    .header-area img { max-height: 60px; width: auto; margin-bottom: 4px; }
     h2 { margin: 2px 0; font-size: 19px; text-transform: uppercase; color: var(--coatl-navy); }
     .start-cam-btn {
       background: var(--coatl-teal); color: #fff; border: none; padding: 18px;
@@ -50,6 +51,7 @@
 <body>
   <div class="container">
     <div class="header-area">
+      <img src="https://drive.google.com/uc?export=view&id=1t8XvOmxhZxm1af6BWIswHxXzzMYP-_4K" alt="Kiest Coatls Logo">
       <h2>Kiest Coatls Live Scanner</h2>
     </div>
     
@@ -166,7 +168,6 @@
         videoElement.setAttribute('playsinline', true);
         await videoElement.play();
 
-        // Start continuous scanning loop
         scanInterval = setInterval(() => scanVideoFrame(videoElement), 150);
       } catch (err) {
         showAlert("Camera access restricted. Check browser permissions.", "error", true);
@@ -185,16 +186,13 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      
-      // Boost contrast and sharpen grayscale for stubborn iOS video streams
       const data = imgData.data;
       for (let i = 0; i < data.length; i += 4) {
         let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        // High-contrast thresholding to make QR black-and-white grid pop
         let v = avg < 120 ? 0 : 255;
-        data[i] = v;     // R
-        data[i + 1] = v; // G
-        data[i + 2] = v; // B
+        data[i] = v;     
+        data[i + 1] = v; 
+        data[i + 2] = v; 
       }
 
       canvas.remove();
@@ -242,7 +240,6 @@
 
       document.getElementById('scanInput').value = '';
       
-      // Brief pause before allowing next scan to prevent duplicate triggers
       setTimeout(function() {
         isProcessingScan = false;
       }, 1500);
