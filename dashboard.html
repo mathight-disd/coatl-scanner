@@ -209,19 +209,22 @@
         });
     }
 
-   // Strict Grade & Group parser preventing cross-contamination
+  // Grade & Group parser with universal 7A rule and strict isolation
     function getGradeKey(sectionStr) {
       if (!sectionStr) return "Other";
       let s = String(sectionStr).trim();
       let upperS = s.toUpperCase();
 
-      // 1. Priority 1: Specialized Units (FLS, TC, Pre-K / Early Childhood) caught first
+      // Universal Rule: "7A" shows up everywhere/all groups
+      if (upperS === "7A" || upperS.includes("7A")) return "All / 7A Universal";
+
+      // Specialized Units (FLS, TC, Pre-K / Early Childhood)
       if (upperS.includes("FLS")) return "FLS Units";
       if (upperS.includes("TC")) return "TC Units";
-      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC") || upperS === "7A" || upperS.includes("7A")) return "Pre-K / 7A";
+      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) return "Pre-K";
       if (upperS.includes("HARRY STONE")) return "Harry Stone";
 
-      // 2. Priority 2: Standard Grade Levels (Strictly matched to avoid false positives)
+      // Standard Grade Levels
       if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) return "Kindergarten";
       if (upperS.startsWith("1") || upperS.includes("1ST")) return "1st Grade";
       if (upperS.startsWith("2") || upperS.includes("2ND")) return "2nd Grade";
@@ -229,7 +232,7 @@
       if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) return "4th Grade";
       if (upperS.startsWith("5") || upperS.startsWith("6") || upperS.includes("5TH") || upperS.includes("6TH")) return "5th / 6th Grade";
 
-      return s; // Fallback for any other unique section name
+      return s; 
     }
     function updateGradeDropdown(data) {
       const select = document.getElementById('gradeFilter');
