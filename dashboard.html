@@ -116,7 +116,7 @@
       color: #1e293b;
       font-weight: 600;
       vertical-align: middle;
-      background-color: #ffffff;
+      /* Background removed here so row-level pastel styling shows through seamlessly */
     }
     .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; background: #ffffff !important; }
     
@@ -282,9 +282,9 @@
       return [s];
     }
 
-    // Dynamic Pastel Row Styling: Automatically active whenever a grade or section filter is chosen
+    // Unique Pastel Row Styling based strictly on section name
     function getRowPastelStyle(sectionName, isFiltered) {
-      if (!isFiltered || !sectionName) return 'background-color: #ffffff;';
+      if (!isFiltered || !sectionName) return '';
       let hash = 0;
       let cleanStr = String(sectionName).trim().toUpperCase();
       for (let i = 0; i < cleanStr.length; i++) {
@@ -361,75 +361,3 @@
       sortedLogs.forEach(row => {
         if (!row || row.length < 8) return;
         let studentId = String(row[1] || '').trim();
-        if (studentId && !uniqueMap.has(studentId)) {
-          uniqueMap.set(studentId, row);
-        }
-      });
-      let deduplicatedLogs = Array.from(uniqueMap.values());
-
-      // 3. Filter by Grade and Section
-      let filtered = deduplicatedLogs.filter(row => {
-        let sectionVal = row[7] || "";
-        let studentGrades = getSectionGrades(sectionVal);
-
-        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
-        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
-        return matchesGrade && matchesSection;
-      });
-
-      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
-      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
-        return;
-      }
-
-      // Pastel coloring activates as long as Grade Level is NOT 'ALL'
-      let isFilteredView = (selectedGrade !== 'ALL');
-
-      filtered.forEach(row => {
-        let nameVal = row[6] || 'Unknown';
-        let idVal = row[1] || '';
-        let locVal = row[2] || 'Carline';
-        let methodVal = row[3] || 'Scanned';
-        let sectVal = row[7] || '';
-        let teachVal = row[8] || '';
-        let photoUrl = row[9] || '';
-
-        // Student picture/avatar
-        let visualHtml = '';
-        if (photoUrl && String(photoUrl).startsWith('http')) {
-          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
-        } else {
-          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-          visualHtml = `<div class="student-initials">${initial}</div>`;
-        }
-        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
-
-        // Color-coded Location Badge
-        let locClass = getAmenityLocationClass(locVal);
-        let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
-
-        // Unique Pastel Background per Section (Active when viewing any specific grade)
-        let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
-
-        let tr = document.createElement('tr');
-        tr.setAttribute('style', rowStyle);
-        tr.innerHTML = '<td>' + studentHtml + '</td>' +
-                       '<td>' + idVal + '</td>' +
-                       '<td>' + locationHtml + '</td>' +
-                       '<td><span style="background:rgba(255,255,255,0.7); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
-                       '<td><span class="section-text">' + sectVal + '</span></td>' +
-                       '<td>' + teachVal + '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-
-    window.onload = function() {
-      fetchLogs();
-      setInterval(fetchLogs, 5000);
-    };
-  </script>
-</body>
-</html>
