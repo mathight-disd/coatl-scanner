@@ -18,7 +18,7 @@
       margin: 0;
       padding: 15px;
     }
-    .container { max-width: 900px; margin: auto; }
+    .container { max-width: 1000px; margin: auto; }
     .header {
       background: #ffffff;
       padding: 15px 20px;
@@ -28,12 +28,35 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     h2 { margin: 0; color: var(--coatl-navy); text-transform: uppercase; font-size: 20px; }
     .status-badge {
       background: #e0f7fa; color: #0b4f6c; padding: 6px 12px;
       border-radius: 20px; font-weight: 700; font-size: 13px;
+    }
+    .controls-bar {
+      background: #ffffff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(19, 38, 78, 0.1);
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls-bar label { font-weight: 700; font-size: 13px; color: var(--coatl-navy); }
+    .controls-bar select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+      outline: none;
+      background: #f8fafc;
+      color: var(--coatl-navy);
     }
     .table-container {
       background: #ffffff;
@@ -76,11 +99,22 @@
       <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
     </div>
 
+    <!-- Filter Control Bar -->
+    <div class="controls-bar">
+      <div>
+        <label for="sectionFilter">Filter by Section / Grade:</label>
+        <select id="sectionFilter" onchange="renderTable()">
+          <option value="ALL">All Sections (Entire Campus)</option>
+        </select>
+      </div>
+      <div style="margin-left: auto; font-size: 13px; color: #64748b;" id="recordCount">Loading logs...</div>
+    </div>
+
     <div class="table-container">
       <table>
         <thead>
           <tr>
-            <th>Time</th>
+            <th>Timestamp</th>
             <th>Student Name</th>
             <th>ID</th>
             <th>Location</th>
@@ -100,47 +134,100 @@
     // PASTE YOUR APPS SCRIPT WEB APP URL HERE:
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
 
-    function loadLogs() {
+    let cachedLogs = [];
+
+    function fetchLogs() {
       fetch(APPS_SCRIPT_URL + '?action=getLogs')
         .then(response => response.json())
         .then(data => {
-          var tbody = document.getElementById('logTableBody');
-          tbody.innerHTML = '';
-
-          if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="no-data">No scans found in the sheet yet.</td></tr>';
-            return;
-          }
-
-          for (var i = data.length - 1; i >= 0; i--) {
-            var row = data[i];
-            var timeVal = row[5] || (row[0] ? new Date(row[0]).toLocaleTimeString() : '');
-            var nameVal = row[6] || 'Unknown';
-            var idVal = row[1] || '';
-            var locVal = row[2] || '';
-            var methodVal = row[3] || 'Scanned';
-            var sectVal = row[7] || '';
-            var teachVal = row[8] || '';
-
-            var tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + timeVal + '</td>' +
-                           '<td style="color:var(--coatl-navy); font-weight:800;">' + nameVal + '</td>' +
-                           '<td>' + idVal + '</td>' +
-                           '<td>' + locVal + '</td>' +
-                           '<td><span style="background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
-                           '<td>' + sectVal + '</td>' +
-                           '<td>' + teachVal + '</td>';
-            tbody.appendChild(tr);
-          }
+          if (!data) data = [];
+          cachedLogs = data;
+          
+          updateSectionDropdown(data);
+          renderTable();
         })
         .catch(err => {
           document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
         });
     }
 
+    function updateSectionDropdown(data) {
+      const select = document.getElementById('sectionFilter');
+      const currentSelection = select.value;
+      
+      // Extract unique sections (Col H / index 7)
+      const sections = [...new Set(data.map(row => row[7]).filter(Boolean))].sort();
+      
+      let html = '<option value="ALL">All Sections (Entire Campus)</option>';
+      sections.forEach(sec => {
+        html += `<option value="${sec}">${sec}</option>`;
+      });
+      
+      select.innerHTML = html;
+      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('logTableBody');
+      const selectedSection = document.getElementById('sectionFilter').value;
+      
+      tbody.innerHTML = '';
+
+      if (cachedLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No scans found in the sheet yet.</td></tr>';
+        document.getElementById('recordCount').innerText = '0 records';
+        return;
+      }
+
+      // Filter rows based on dropdown selection
+      let filtered = cachedLogs.filter(row => {
+        if (selectedSection === 'ALL') return true;
+        return row[7] === selectedSection;
+      });
+
+      // Sort chronologically by timestamp (newest scans at the top)
+      filtered.sort((a, b) => {
+        let timeA = new Date(a[0] || 0).getTime();
+        let timeB = new Date(b[0] || 0).getTime();
+        return timeB - timeA; // Descending order (newest first)
+      });
+
+      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No scans match this section filter.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(row => {
+        // Row mapping from "Form Responses Update" (Cols A through I):
+        // row[0] = Timestamp, row[1] = ID, row[2] = Location, row[3] = Method, 
+        // row[4] = Date, row[5] = Time, row[6] = Name, row[7] = Section, row[8] = Teacher
+        
+        let rawTimestamp = row[0] ? new Date(row[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (row[5] || '');
+        let nameVal = row[6] || 'Unknown';
+        let idVal = row[1] || '';
+        let locVal = row[2] || '';
+        let methodVal = row[3] || 'Scanned';
+        let sectVal = row[7] || '';
+        let teachVal = row[8] || '';
+
+        let tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + rawTimestamp + '</td>' +
+                       '<td style="color:var(--coatl-navy); font-weight:800;">' + nameVal + '</td>' +
+                       '<td>' + idVal + '</td>' +
+                       '<td>' + locVal + '</td>' +
+                       '<td><span style="background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
+                       '<td>' + sectVal + '</td>' +
+                       '<td>' + teachVal + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Load immediately on page open, then auto-refresh every 5 seconds in the background
     window.onload = function() {
-      loadLogs();
-      setInterval(loadLogs, 5000);
+      fetchLogs();
+      setInterval(fetchLogs, 5000);
     };
   </script>
 </body>
