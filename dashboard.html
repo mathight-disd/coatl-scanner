@@ -112,12 +112,12 @@
     }
     td {
       padding: 12px 16px;
-      border-bottom: 1px solid #e2e8f0;
-      color: #334155;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      color: #1e293b;
       font-weight: 600;
       vertical-align: middle;
     }
-    .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; }
+    .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; background: #ffffff !important; }
     
     .student-cell {
       display: flex;
@@ -147,13 +147,10 @@
       flex-shrink: 0;
     }
 
-    /* Pastel Section Pill / Tag */
-    .section-tag {
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      display: inline-block;
+    /* Section text display */
+    .section-text {
+      font-weight: 800;
+      font-size: 13px;
     }
 
     /* Dismissal Location Color Badges */
@@ -251,7 +248,6 @@
         });
     }
 
-    // Helper to determine valid grades for split-levels & 7A universal rule
     function getSectionGrades(sectionStr) {
       if (!sectionStr) return ["Other"];
       let s = String(sectionStr).trim();
@@ -286,15 +282,16 @@
       return [s];
     }
 
-    // Generate consistent pastel background & text color based on section name
-    function getSectionBadgeStyle(sectionName) {
-      if (!sectionName) return 'background: #f1f5f9; color: #475569;';
+    // Generate consistent pastel background color based on section name for the entire row
+    function getRowPastelStyle(sectionName) {
+      if (!sectionName) return 'background-color: #ffffff;';
       let hash = 0;
       for (let i = 0; i < sectionName.length; i++) {
         hash = sectionName.charCodeAt(i) + ((hash << 5) - hash);
       }
       let h = Math.abs(hash) % 360;
-      return `background-color: hsl(\${h}, 70%, 92%); color: hsl(${h}, 80\%, 25\%); border: 1px solid hsl(${h}, 60%, 82%);`;
+      // High lightness (94%) and moderate saturation (60%) for a soft, readable pastel row background
+      return `background-color: hsl(${h}, 60%, 94%);`;
     }
 
     function getAmenityLocationClass(locStr) {
@@ -330,7 +327,57 @@
       
       let html = '<option value="ALL">All Sections</option>';
       sections.forEach(sec => {
-        html += `<option value="\${sec}">${sec}</option>`; });  select.innerHTML = html; select.value = sections.includes(currentSelection) ? currentSelection : 'ALL'; }  function renderTable() { const tbody = document.getElementById('logTableBody'); const selectedGrade = document.getElementById('gradeFilter').value; const selectedSection = document.getElementById('sectionFilter').value;  tbody.innerHTML = '';  if (!cachedLogs \vert{}\vert{} cachedLogs.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>'; document.getElementById('recordCount').innerText = '0 records'; return; }  // 1. Sort all raw logs chronologically (newest first) let sortedLogs = [...cachedLogs].sort((a, b) => { let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0; let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0; if (isNaN(timeA)) timeA = 0; if (isNaN(timeB)) timeB = 0; return timeB - timeA; });  // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID let uniqueMap = new Map(); sortedLogs.forEach(row => { if (!row \vert{}\vert{} row.length < 8) return; let studentId = String(row[1] \vert{}\vert{} '').trim(); if (studentId && !uniqueMap.has(studentId)) { uniqueMap.set(studentId, row); } }); let deduplicatedLogs = Array.from(uniqueMap.values());  // 3. Filter by Grade and Section let filtered = deduplicatedLogs.filter(row => { let sectionVal = row[7] \vert{}\vert{} ""; let studentGrades = getSectionGrades(sectionVal);  let matchesGrade = (selectedGrade === 'ALL' \vert{}\vert{} studentGrades.includes(selectedGrade)); let matchesSection = (selectedSection === 'ALL' \vert{}\vert{} sectionVal === selectedSection); return matchesGrade && matchesSection; });  document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+        html += `<option value="${sec}">${sec}</option>`;
+      });
+      
+      select.innerHTML = html;
+      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('logTableBody');
+      const selectedGrade = document.getElementById('gradeFilter').value;
+      const selectedSection = document.getElementById('sectionFilter').value;
+      
+      tbody.innerHTML = '';
+
+      if (!cachedLogs || cachedLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
+        document.getElementById('recordCount').innerText = '0 records';
+        return;
+      }
+
+      // 1. Sort all raw logs chronologically (newest first)
+      let sortedLogs = [...cachedLogs].sort((a, b) => {
+        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
+        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
+        if (isNaN(timeA)) timeA = 0;
+        if (isNaN(timeB)) timeB = 0;
+        return timeB - timeA;
+      });
+
+      // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID
+      let uniqueMap = new Map();
+      sortedLogs.forEach(row => {
+        if (!row || row.length < 8) return;
+        let studentId = String(row[1] || '').trim();
+        if (studentId && !uniqueMap.has(studentId)) {
+          uniqueMap.set(studentId, row);
+        }
+      });
+      let deduplicatedLogs = Array.from(uniqueMap.values());
+
+      // 3. Filter by Grade and Section
+      let filtered = deduplicatedLogs.filter(row => {
+        let sectionVal = row[7] || "";
+        let studentGrades = getSectionGrades(sectionVal);
+
+        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
+        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
+        return matchesGrade && matchesSection;
+      });
+
+      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
       document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
 
       if (filtered.length === 0) {
@@ -353,6 +400,33 @@
           visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
         } else {
           let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-          visualHtml = `<div class="student-initials">\${initial}</div>`;
+          visualHtml = `<div class="student-initials">${initial}</div>`;
         }
-        let studentHtml = `<div class="student-cell">\${visualHtml}<span style="color:var(--coatl-
+        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
+
+        // Color-coded Location Badge
+        let locClass = getAmenityLocationClass(locVal);
+        let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
+
+        // Apply Pastel Background to the entire Row
+        let rowStyle = getRowPastelStyle(sectVal);
+
+        let tr = document.createElement('tr');
+        tr.setAttribute('style', rowStyle);
+        tr.innerHTML = '<td>' + studentHtml + '</td>' +
+                       '<td>' + idVal + '</td>' +
+                       '<td>' + locationHtml + '</td>' +
+                       '<td><span style="background:rgba(255,255,255,0.6); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
+                       '<td><span class="section-text">' + sectVal + '</span></td>' +
+                       '<td>' + teachVal + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.onload = function() {
+      fetchLogs();
+      setInterval(fetchLogs, 5000);
+    };
+  </script>
+</body>
+</html>
