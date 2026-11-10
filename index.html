@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <title>Kiest Coatls Live Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    :root {
+      --coatl-red: #C8232C;
+      --coatl-navy: #13264E;
+      --coatl-teal: #00A8E8;
+      --coatl-bg: #F4F6F9;
+    }
+    html, body {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background: var(--coatl-bg); font-family: 'Segoe UI', Arial, sans-serif; color: var(--coatl-navy);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .container { 
+      width: 100%; max-width: 480px; height: 96vh; background: #ffffff; padding: 14px; 
+      border-radius: 16px; border-top: 10px solid var(--coatl-red); border-bottom: 6px solid var(--coatl-teal);
+      box-shadow: 0 6px 20px rgba(19, 38, 78, 0.15); text-align: center; box-sizing: border-box;
+      display: flex; flex-direction: column; justify-content: space-between; margin: auto;
+    }
+    .header-area { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    h2 { margin: 2px 0; font-size: 19px; text-transform: uppercase; color: var(--coatl-navy); }
+    .start-cam-btn {
+      background: var(--coatl-teal); color: #fff; border: none; padding: 18px;
+      font-size: 18px; font-weight: 900; border-radius: 10px; width: 100%; cursor: pointer;
+      text-transform: uppercase; margin-bottom: 6px; display: block; box-sizing: border-box;
+      box-shadow: 0 3px 10px rgba(0, 168, 232, 0.3);
+    }
+    .torch-btn {
+      background: var(--coatl-navy); color: #fff; border: none; padding: 8px 14px;
+      font-size: 13px; font-weight: 800; border-radius: 6px; cursor: pointer;
+      margin: 4px auto; display: none;
+    }
+    #reader {
+      width: 100%; max-height: 270px; border-radius: 10px; overflow: hidden;
+      border: 3px solid var(--coatl-teal); background: #000; margin: 2px auto; display: none;
+    }
+    #reader video { width: 100% !important; height: 240px !important; object-fit: cover !important; }
+    .manual-row { display: flex; gap: 6px; }
+    input[type="text"] { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; font-weight: 700; }
+    .submit-btn { background: var(--coatl-red); color: #fff; border: none; padding: 0 18px; font-size: 15px; border-radius: 8px; font-weight: 900; text-transform: uppercase; }
+    #alertBox { margin: 4px 0; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 900; display: none; }
+    .success { background: #e0f7fa; color: #0b4f6c; border: 3px solid var(--coatl-teal); }
+    .error { background: #ffebee; color: var(--coatl-red); border: 3px solid var(--coatl-red); }
+    .processing { background: #fef3c7; color: #92400e; border: 3px solid #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-area">
+      <h2>Kiest Coatls Live Scanner</h2>
+    </div>
+    
+    <div>
+      <label for="locationSelect" style="text-align:left; display:block; font-weight:800; font-size:14px; margin-bottom:3px;">Dismissal Location:</label>
+      <select id="locationSelect" onchange="localStorage.setItem('coatl_dismissal_loc', this.value)" style="width:100%; padding:10px; font-size:15px; border-radius:8px; border:2px solid #cbd5e1; font-weight:700; color:var(--coatl-navy);">
+        <option value="Millmar Carline (Back)">Millmar Carline (Back)</option>
+        <option value="Millmar Walkup (Back)">Millmar Walkup (Back)</option>
+        <option value="Healey Carline (Front)">Healey Carline (Front)</option>
+        <option value="Healey Walkup (Front)">Healey Walkup (Front)</option>
+        <option value="Cafeteria">Cafeteria</option>
+        <option value="ABC Dismissal">ABC Dismissal</option>
+      </select>
+    </div>
+
+    <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
+
+    <div id="reader"></div>
+    <button class="torch-btn" id="torchBtn" onclick="toggleTorch()">🔦 Toggle Flashlight</button>
+
+    <div id="alertBox"></div>
+
+    <div>
+      <label for="scanInput" style="text-align:left; display:block; font-weight:800; font-size:14px; margin-bottom:3px;">Or Type Student ID:</label>
+      <div class="manual-row">
+        <input type="text" id="scanInput" placeholder="ID..." autocomplete="off">
+        <button class="submit-btn" onclick="submitScan(document.getElementById('scanInput').value.trim())">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+    let html5QrCode = null;
+    let torchOn = false;
+
+    // Audio Beep Synthesizer (No external audio file needed)
+    function playBeep() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // High A note
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {}
+    }
+
+    window.onload = function() {
+      var savedLoc = localStorage.getItem('coatl_dismissal_loc');
+      if (savedLoc) document.getElementById('locationSelect').value = savedLoc;
+
+      var input = document.getElementById('scanInput');
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') submitScan(input.value.trim());
+      });
+    };
+
+    function initCamera() {
+      document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('reader').style.display = 'block';
+
+      html5QrCode = new Html5Qrcode("reader", { 
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        verbose: false
+      });
+
+      const config = { 
+        fps: 24, 
+        qrbox: { width: 230, height: 230 },
+        disableFlip: false 
+      };
+      
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        onScanSuccess,
+        function(error) {}
+      ).then(() => {
+        try {
+          const cap = html5QrCode.getRunningTrackCameraCapabilities();
+          if (cap && cap.torchFeature && cap.torchFeature().isSupported()) {
+            document.getElementById('torchBtn').style.display = 'inline-block';
+          }
+        } catch(e) {}
+      }).catch(err => {
+        showAlert("Camera access blocked. Please allow permissions in browser settings.", "error", false);
+        document.getElementById('startBtn').style.display = 'block';
+        document.getElementById('reader').style.display = 'none';
+      });
+    }
+
+    function toggleTorch() {
+      if (!html5QrCode) return;
+      try {
+        const cap = html5QrCode.getRunningTrackCameraCapabilities();
+        torchOn = !torchOn;
+        cap.torchFeature().apply(torchOn);
+      } catch(e) {}
+    }
+
+    function onScanSuccess(decodedText) {
+      let code = decodedText.trim();
+      if (code.includes('code=')) {
+        var match = code.match(/[?&]code=([^&]+)/);
+        if (match) code = decodeURIComponent(match[1]);
+      }
+      if (html5QrCode && html5QrCode.isScanning) html5QrCode.pause();
+      playBeep(); // Instant audio feedback!
+      submitScan(code);
+    }
+
+    async function submitScan(code) {
+      var location = document.getElementById('locationSelect').value;
+      if (!code) {
+        showAlert('Please enter or scan an ID.', 'error', true);
+        if (html5QrCode && !html5QrCode.isScanning) { try { html5QrCode.resume(); } catch(e){} }
+        return;
+      }
+
+      showAlert('Logging ID: ' + code + '...', 'processing', false);
+
+      try {
+        await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "code=" + encodeURIComponent(code) + "&location=" + encodeURIComponent(location)
+        });
+
+        showAlert('✅ ID ' + code + ' | Logged Successfully!', 'success', true);
+        if ("vibrate" in navigator) navigator.vibrate(200);
+      } catch (err) {
+        showAlert('Network error: ' + err.message, 'error', true);
+      }
+
+      document.getElementById('scanInput').value = '';
+      setTimeout(function() {
+        if (html5QrCode) { try { html5QrCode.resume(); } catch(e) {} }
+      }, 1500);
+    }
+
+    function showAlert(message, type, autoHide) {
+      var box = document.getElementById('alertBox');
+      box.innerText = message;
+      box.className = type;
+      box.style.display = 'block';
+      if (autoHide) {
+        setTimeout(function() { box.style.display = 'none'; }, 2500);
+      }
+    }
+  </script>
+</body>
+</html>
