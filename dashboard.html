@@ -2,439 +2,139 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0">
-  <div class="header-area" style="flex-direction: column; margin-bottom: 8px;"> 
-    </div>
-  <title>Edwin J. Kiest Coatls - Teacher Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <title>Kiest Coatls Dismissal Dashboard</title>
   <style>
     :root {
       --coatl-red: #C8232C;
       --coatl-navy: #13264E;
       --coatl-teal: #00A8E8;
       --coatl-bg: #F4F6F9;
-      --coatl-card-bg: #FFFFFF;
     }
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: var(--coatl-bg);
-      color: var(--coatl-navy);
-      margin: 0;
-      padding: 15px;
+    html, body {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background: var(--coatl-bg); font-family: 'Segoe UI', Arial, sans-serif; color: var(--coatl-navy);
     }
-    .container { max-width: 1050px; margin: auto; }
-    .header {
-      background: var(--coatl-card-bg);
-      padding: 18px 22px;
-      border-radius: 12px;
-      border-top: 8px solid var(--coatl-red);
-      box-shadow: 0 4px 15px rgba(19, 38, 78, 0.08);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 15px;
+    .container { 
+      max-width: 800px; margin: 20px auto; background: #ffffff; padding: 20px; 
+      border-radius: 16px; border-top: 10px solid var(--coatl-red); border-bottom: 6px solid var(--coatl-teal);
+      box-shadow: 0 6px 20px rgba(19, 38, 78, 0.15); box-sizing: border-box;
     }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 15px;
+    .header-area { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 20px; text-align: center; }
+    .header-area img { max-height: 65px; width: auto; margin-bottom: 6px; }
+    h1 { margin: 4px 0; font-size: 22px; text-transform: uppercase; color: var(--coatl-navy); }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+    .stat-card h3 { margin: 0 0 6px 0; font-size: 14px; color: #64748b; text-transform: uppercase; }
+    .stat-card .value { font-size: 26px; font-weight: 900; color: var(--coatl-navy); }
+    .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .refresh-btn {
+      background: var(--coatl-teal); color: #fff; border: none; padding: 10px 16px;
+      font-size: 14px; font-weight: 800; border-radius: 8px; cursor: pointer; text-transform: uppercase;
     }
-    .mascot-avatar {
-      width: 50px;
-      height: 50px;
-      background: var(--coatl-navy);
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 22px;
-      border: 2px solid var(--coatl-red);
-      box-shadow: 0 2px 8px rgba(200, 35, 44, 0.3);
-    }
-    h2 { margin: 0; color: var(--coatl-navy); text-transform: uppercase; font-size: 20px; letter-spacing: 0.5px; }
-    .status-badge {
-      background: #e0f7fa; color: #0b4f6c; padding: 6px 14px;
-      border-radius: 20px; font-weight: 700; font-size: 13px;
-      border: 1px solid #b2ebf2;
-    }
-    .controls-bar {
-      background: var(--coatl-card-bg);
-      padding: 15px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(19, 38, 78, 0.08);
-      margin-bottom: 20px;
-      display: flex;
-      gap: 20px;
-      align-items: center;
-      flex-wrap: wrap;
-      border-left: 6px solid var(--coatl-teal);
-    }
-    .control-group { display: flex; flex-direction: column; gap: 5px; }
-    .controls-bar label { font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--coatl-navy); letter-spacing: 0.5px; }
-    .controls-bar select {
-      padding: 9px 14px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      font-size: 14px;
-      outline: none;
-      background: #f8fafc;
-      color: var(--coatl-navy);
-      font-weight: 600;
-      min-width: 200px;
-      cursor: pointer;
-    }
-    .controls-bar select:focus {
-      border-color: var(--coatl-teal);
-      box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.15);
-    }
-    .table-container {
-      background: var(--coatl-card-bg);
-      border-radius: 12px;
-      overflow-x: auto;
-      box-shadow: 0 4px 15px rgba(19, 38, 78, 0.08);
-      border-bottom: 6px solid var(--coatl-teal);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 14px;
-    }
-    th {
-      background: var(--coatl-navy);
-      color: #ffffff;
-      padding: 14px 16px;
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 0.5px;
-    }
-    td {
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-      color: #1e293b;
-      font-weight: 600;
-      vertical-align: middle;
-    }
-    .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; background: #ffffff !important; }
-    
-    .student-cell {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .student-photo {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--coatl-teal);
-      background: #e2e8f0;
-      flex-shrink: 0;
-    }
-    .student-initials {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background: var(--coatl-teal);
-      color: white;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 15px;
-      flex-shrink: 0;
-    }
-
-    .section-text {
-      font-weight: 800;
-      font-size: 13px;
-    }
-
-    /* Dismissal Location Color Badges */
-    .location-badge {
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      display: inline-block;
-      text-transform: uppercase;
-    }
-    .loc-carline { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-    .loc-bus { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-    .loc-walker { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-    .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
-    .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    th { background: #f1f5f9; color: var(--coatl-navy); font-weight: 800; }
+    tr:hover { background: #f8fafc; }
+    #statusMsg { font-size: 13px; color: #64748b; text-align: center; margin-top: 10px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <div class="header-left">
-        <div class="mascot-avatar">🐍</div>
-        <div>
-          <h2>Edwin J. Kiest Coatls</h2>
-          <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 2px;">LIVE DISMISSAL MONITOR</div>
-        </div>
-      </div>
-      <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
+    <div class="header-area">
+      <img src="logo.png" alt="Kiest Coatls Logo">
+      <h1>Dismissal Live Dashboard</h1>
     </div>
 
-    <!-- Filter Control Bar -->
-    <div class="controls-bar">
-      <div class="control-group">
-        <label for="gradeFilter">1. Select Grade Level:</label>
-        <select id="gradeFilter" onchange="onGradeChange()">
-          <option value="ALL">ALL Students</option>
-          <option value="Pre-K">Pre-K</option>
-          <option value="Kinder">Kinder</option>
-          <option value="1st Grade">1st Grade</option>
-          <option value="2nd Grade">2nd Grade</option>
-          <option value="3rd Grade">3rd Grade</option>
-          <option value="4th Grade">4th Grade</option>
-          <option value="5th Grade">5th Grade</option>
-          <option value="6th Grade">6th Grade</option>
-          <option value="FLS & TC">FLS & TC</option>
-        </select>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Dismissed Today</h3>
+        <div class="value" id="totalCount">0</div>
       </div>
-
-      <div class="control-group">
-        <label for="sectionFilter">2. Select Section / Homeroom:</label>
-        <select id="sectionFilter" onchange="renderTable()">
-          <option value="ALL">All Sections</option>
-        </select>
+      <div class="stat-card">
+        <h3>Active Location</h3>
+        <div class="value" id="activeLoc" style="font-size: 18px; margin-top: 4px;">Live Feed</div>
       </div>
-
-      <div style="margin-left: auto; font-size: 13px; color: #64748b; font-weight: 600;" id="recordCount">Loading logs...</div>
     </div>
 
-    <div class="table-container">
+    <div class="actions-bar">
+      <span style="font-weight: 700; font-size: 15px;">Recent Dismissal Logs</span>
+      <button class="refresh-btn" onclick="loadDismissalData()">🔄 Refresh Feed</button>
+    </div>
+
+    <div style="overflow-x: auto;">
       <table>
         <thead>
           <tr>
+            <th>Time</th>
             <th>Student Name</th>
-            <th>ID</th>
             <th>Location</th>
             <th>Method</th>
-            <th>Section</th>
-            <th>Teacher</th>
           </tr>
-        </thead>
-        <tbody id="logTableBody">
-          <tr><td colspan="6" class="no-data">Loading recent dismissal logs...</td></tr>
-        </tbody>
+        كنولوجي
+          <tbody id="logTableBody">
+            <tr><td colspan="4" style="text-align:center; color:#64748b;">Loading recent dismissal logs...</td></tr>
+          </tbody>
       </table>
     </div>
+    <div id="statusMsg">Connected to Apps Script backend</div>
   </div>
 
   <script>
+    // Replace with your actual Apps Script Web App URL if needed
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
 
-    let cachedLogs = [];
+    window.onload = function() {
+      loadDismissalData();
+      // Auto-refresh every 15 seconds during dismissal
+      setInterval(loadDismissalData, 15000);
+    };
 
-    function fetchLogs() {
-      fetch(APPS_SCRIPT_URL + '?action=getLogs')
-        .then(response => response.json())
-        .then(data => {
-          cachedLogs = Array.isArray(data) ? data : [];
-          updateSectionDropdown(cachedLogs);
-          renderTable();
-        })
-        .catch(err => {
-          console.error("Fetch error:", err);
-          document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
-        });
+    function loadDismissalData() {
+      var cbName = 'dash_cb_' + Date.now();
+      window[cbName] = function(data) {
+        var el = document.getElementById(cbName);
+        if (el) el.remove();
+        delete window[cbName];
+
+        if (Array.isArray(data)) {
+          updateDashboardUI(data);
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      // Request log history from Apps Script backend
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName + '&action=logs';
+      script.onerror = function() {
+        document.getElementById('statusMsginnerText = '⚠️ Unable to sync live logs (backend offline)';
+      };
+      document.body.appendChild(script);
     }
 
-    function getSectionGrades(sectionStr) {
-      if (!sectionStr) return ["Other"];
-      let s = String(sectionStr).trim();
-      let upperS = s.toUpperCase();
-      let grades = [];
-
-      if (upperS === "7A" || upperS.includes("7A")) {
-        return ["Pre-K", "Kinder", "1st Grade", "2nd Grade", "3rd Grade", "4th Grade", "5th Grade", "6th Grade", "FLS & TC"];
-      }
-
-      if (upperS.includes("FLS") || upperS.includes("TC")) return ["FLS & TC"];
-      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) return ["Pre-K"];
-      if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) return ["Kinder"];
-      if (upperS.startsWith("1") || upperS.includes("1ST")) return ["1st Grade"];
-      if (upperS.startsWith("2") || upperS.includes("2ND")) return ["2nd Grade"];
-      
-      // Split level 3rd & 4th grade cross-listing
-      if (upperS.startsWith("3") || upperS.includes("3RD")) {
-        grades.push("3rd Grade");
-        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) grades.push("4th Grade");
-        return grades;
-      }
-      if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
-        grades.push("4th Grade");
-        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A") || upperS.includes("4B")) grades.push("3rd Grade");
-        return grades;
-      }
-
-      if (upperS.startsWith("5") || upperS.includes("5TH")) return ["5th Grade"];
-      if (upperS.startsWith("6") || upperS.includes("6TH")) return ["6th Grade"];
-
-      return [s];
-    }
-
-  // Unique Pastel Row Styling based on the FULL string hash so 2A, 2B, 2C, etc. get completely different colors
-    function getRowPastelStyle(sectionName, isFiltered) {
-      if (!isFiltered || !sectionName) return '';
-      let hash = 0;
-      let cleanStr = String(sectionName).trim().toUpperCase();
-      
-      // Hash every single character in the string for a truly unique color footprint
-      for (let i = 0; i < cleanStr.length; i++) {
-        hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      
-      // Spread across the full 360-degree color wheel using absolute math
-      let h = Math.abs(hash * 37) % 360; 
-      return `background-color: hsl(${h}, 70%, 93%);`;
-    }
-    function getAmenityLocationClass(locStr) {
-      if (!locStr) return 'loc-default';
-      let l = String(locStr).toLowerCase();
-      if (l.includes('carline') || l.includes('millmar')) return 'loc-carline';
-      if (l.includes('bus')) return 'loc-bus';
-      if (l.includes('walk')) return 'loc-walker';
-      if (l.includes('daycare') || l.includes('after')) return 'loc-daycare';
-      return 'loc-default';
-    }
-
-    // RESTORED: Handles dropdown change event cleanly
-    function onGradeChange() {
-      updateSectionDropdown(cachedLogs);
-      renderTable();
-    }
-
-    function updateSectionDropdown(data) {
-      const selectedGrade = document.getElementById('gradeFilter').value;
-      const select = document.getElementById('sectionFilter');
-      const currentSelection = select.value;
-      
-      let filteredData = data;
-      if (selectedGrade !== 'ALL') {
-        filteredData = data.filter(row => {
-          if (!row || !row[7]) return false;
-          let grades = getSectionGrades(row[7]);
-          return grades.includes(selectedGrade);
-        });
-      }
-      
-      const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
-      
-      let html = '<option value="ALL">All Sections</option>';
-      sections.forEach(sec => {
-        html += `<option value="${sec}">${sec}</option>`;
-      });
-      
-      select.innerHTML = html;
-      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById('logTableBody');
-      const selectedGrade = document.getElementById('gradeFilter').value;
-      const selectedSection = document.getElementById('sectionFilter').value;
-      
+    function updateDashboardUI(logs) {
+      document.getElementById('totalCount').innerText = logs.length;
+      var tbody = document.getElementById('logTableBody');
       tbody.innerHTML = '';
 
-      if (!cachedLogs || cachedLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
-        document.getElementById('recordCount').innerText = '0 records';
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">No students dismissed yet today.</td></tr>';
         return;
       }
 
-      // 1. Sort all raw logs chronologically (newest first)
-      let sortedLogs = [...cachedLogs].sort((a, b) => {
-        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
-        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
-        if (isNaN(timeA)) timeA = 0;
-        if (isNaN(timeB)) timeB = 0;
-        return timeB - timeA;
-      });
-
-      // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID
-      let uniqueMap = new Map();
-      sortedLogs.forEach(row => {
-        if (!row || row.length < 8) return;
-        let studentId = String(row[1] || '').trim();
-        if (studentId && !uniqueMap.has(studentId)) {
-          uniqueMap.set(studentId, row);
-        }
-      });
-      let deduplicatedLogs = Array.from(uniqueMap.values());
-
-      // 3. Filter by Grade and Section
-      let filtered = deduplicatedLogs.filter(row => {
-        let sectionVal = row[7] || "";
-        let studentGrades = getSectionGrades(sectionVal);
-
-        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
-        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
-        return matchesGrade && matchesSection;
-      });
-
-      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
-      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
-        return;
-      }
-
-      // Pastel coloring activates whenever Grade Level is NOT 'ALL'
-      let isFilteredView = (selectedGrade !== 'ALL');
-
-      filtered.forEach(row => {
-        let nameVal = row[6] || 'Unknown';
-        let idVal = row[1] || '';
-        let locVal = row[2] || 'Carline';
-        let methodVal = row[3] || 'Scanned';
-        let sectVal = row[7] || '';
-        let teachVal = row[8] || '';
-        let photoUrl = row[9] || '';
-
-        // Student picture/avatar
-        let visualHtml = '';
-        if (photoUrl && String(photoUrl).startsWith('http')) {
-          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
-        } else {
-          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-          visualHtml = `<div class="student-initials">${initial}</div>`;
-        }
-        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
-
-        // Color-coded Location Badge
-        let locClass = getAmenityLocationClass(locVal);
-        let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
-
-        // Unique Pastel Background per Section
-        let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
-
-        let tr = document.createElement('tr');
-        if (rowStyle) tr.setAttribute('style', rowStyle);
-        tr.innerHTML = '<td>' + studentHtml + '</td>' +
-                       '<td>' + idVal + '</td>' +
-                       '<td>' + locationHtml + '</td>' +
-                       '<td><span style="background:rgba(255,255,255,0.7); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
-                       '<td><span class="section-text">' + sectVal + '</span></td>' +
-                       '<td>' + teachVal + '</td>';
+      // Show most recent first (up to 20 rows)
+      logs.slice(-20).reverse().forEach(log => {
+        var tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${log.timestamp || '--:--'}</td>
+          <td style="font-weight:700;">${log.name || log.code}</td>
+          <td>${log.location || 'Main'}</td>
+          <td><span style="background:#e0f7fa; color:#0b4f6c; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700;">${log.method || 'Scanned'}</span></td>
+        `;
         tbody.appendChild(tr);
       });
+      document.getElementById('statusMsg').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
     }
-
-    window.onload = function() {
-      fetchLogs();
-      setInterval(fetchLogs, 5000);
-    };
   </script>
 </body>
 </html>
