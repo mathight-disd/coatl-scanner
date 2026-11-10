@@ -112,19 +112,28 @@
     .student-cell {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
-    .student-avatar {
-      width: 32px;
-      height: 32px;
+    .student-photo {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--coatl-teal);
+      background: #e2e8f0;
+      flex-shrink: 0;
+    }
+    .student-initials {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
       background: var(--coatl-teal);
       color: white;
-      border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 14px;
       flex-shrink: 0;
     }
   </style>
@@ -165,7 +174,6 @@
       <table>
         <thead>
           <tr>
-            <th>Timestamp</th>
             <th>Student Name</th>
             <th>ID</th>
             <th>Location</th>
@@ -175,7 +183,7 @@
           </tr>
         </thead>
         <tbody id="logTableBody">
-          <tr><td colspan="7" class="no-data">Loading recent dismissal logs...</td></tr>
+          <tr><td colspan="6" class="no-data">Loading recent dismissal logs...</td></tr>
         </tbody>
       </table>
     </div>
@@ -203,7 +211,6 @@
         });
     }
 
-    // Custom sorting and grouping incorporating the "7A" rule and standard grade levels
     function getGradeKey(sectionStr) {
       if (!sectionStr) return "Other";
       let s = String(sectionStr).trim().toUpperCase();
@@ -243,7 +250,6 @@
       const select = document.getElementById('sectionFilter');
       const currentSelection = select.value;
       
-      // Filter data by selected grade if not ALL
       let filteredData = data;
       if (selectedGrade !== 'ALL') {
         filteredData = data.filter(row => getGradeKey(row[7]) === selectedGrade);
@@ -268,12 +274,11 @@
       tbody.innerHTML = '';
 
       if (cachedLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No scans found in the sheet yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
         document.getElementById('recordCount').innerText = '0 records';
         return;
       }
 
-      // Filter rows based on both Grade (via 7A rule / grade parser) and exact Section
       let filtered = cachedLogs.filter(row => {
         let sectionVal = row[7];
         let matchesGrade = (selectedGrade === 'ALL' || getGradeKey(sectionVal) === selectedGrade);
@@ -285,36 +290,38 @@
       filtered.sort((a, b) => {
         let timeA = new Date(a[0] || 0).getTime();
         let timeB = new Date(b[0] || 0).getTime();
-        return timeB - timeA; // Descending order (newest first)
+        return timeB - timeA;
       });
 
       document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
 
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No scans match this filter combination.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
         return;
       }
 
       filtered.forEach(row => {
-        // Row mapping from "Form Responses Update" (Cols A through I):
-        // row[0] = Timestamp, row[1] = ID, row[2] = Location, row[3] = Method, 
-        // row[4] = Date, row[5] = Time, row[6] = Name, row[7] = Section, row[8] = Teacher
-        
-        let rawTimestamp = row[0] ? new Date(row[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (row[5] || '');
+        // row[1] = ID, row[2] = Location, row[3] = Method, row[6] = Name, row[7] = Section, row[8] = Teacher, row[9] = Photo URL from Column K
         let nameVal = row[6] || 'Unknown';
         let idVal = row[1] || '';
         let locVal = row[2] || '';
         let methodVal = row[3] || 'Scanned';
         let sectVal = row[7] || '';
         let teachVal = row[8] || '';
+        let photoUrl = row[9] || '';
 
-        // Generate student initial avatar circle
-        let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
-        let studentHtml = `<div class="student-cell"><div class="student-avatar">${initial}</div><span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
+        let visualHtml = '';
+        if (photoUrl && photoUrl.startsWith('http')) {
+          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
+        } else {
+          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
+          visualHtml = `<div class="student-initials">${initial}</div>`;
+        }
+
+        let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
 
         let tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + rawTimestamp + '</td>' +
-                       '<td>' + studentHtml + '</td>' +
+        tr.innerHTML = '<td>' + studentHtml + '</td>' +
                        '<td>' + idVal + '</td>' +
                        '<td>' + locVal + '</td>' +
                        '<td><span style="background:#e2e8f0; padding:3px 8px; border-radius:4px; font-size:11px;">' + methodVal + '</span></td>' +
@@ -324,7 +331,6 @@
       });
     }
 
-    // Load immediately, then auto-refresh every 5 seconds
     window.onload = function() {
       fetchLogs();
       setInterval(fetchLogs, 5000);
