@@ -116,7 +116,6 @@
       color: #1e293b;
       font-weight: 600;
       vertical-align: middle;
-      /* Background removed here so row-level pastel styling shows through seamlessly */
     }
     .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; background: #ffffff !important; }
     
@@ -304,6 +303,7 @@
       return 'loc-default';
     }
 
+    // RESTORED: Handles dropdown change event cleanly
     function onGradeChange() {
       updateSectionDropdown(cachedLogs);
       renderTable();
@@ -312,52 +312,4 @@
     function updateSectionDropdown(data) {
       const selectedGrade = document.getElementById('gradeFilter').value;
       const select = document.getElementById('sectionFilter');
-      const currentSelection = select.value;
-      
-      let filteredData = data;
-      if (selectedGrade !== 'ALL') {
-        filteredData = data.filter(row => {
-          if (!row || !row[7]) return false;
-          let grades = getSectionGrades(row[7]);
-          return grades.includes(selectedGrade);
-        });
-      }
-      
-      const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
-      
-      let html = '<option value="ALL">All Sections</option>';
-      sections.forEach(sec => {
-        html += `<option value="${sec}">${sec}</option>`;
-      });
-      
-      select.innerHTML = html;
-      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById('logTableBody');
-      const selectedGrade = document.getElementById('gradeFilter').value;
-      const selectedSection = document.getElementById('sectionFilter').value;
-      
-      tbody.innerHTML = '';
-
-      if (!cachedLogs || cachedLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
-        document.getElementById('recordCount').innerText = '0 records';
-        return;
-      }
-
-      // 1. Sort all raw logs chronologically (newest first)
-      let sortedLogs = [...cachedLogs].sort((a, b) => {
-        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
-        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
-        if (isNaN(timeA)) timeA = 0;
-        if (isNaN(timeB)) timeB = 0;
-        return timeB - timeA;
-      });
-
-      // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID
-      let uniqueMap = new Map();
-      sortedLogs.forEach(row => {
-        if (!row || row.length < 8) return;
-        let studentId = String(row[1] || '').trim();
+      const current
