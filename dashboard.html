@@ -289,7 +289,6 @@
       for (let i = 0; i < cleanStr.length; i++) {
         hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
       }
-      // Spread across the full 360-degree color wheel with soft pastel saturation (65%) and high lightness (94%)
       let h = Math.abs(hash) % 360;
       return `background-color: hsl(${h}, 65%, 94%);`;
     }
