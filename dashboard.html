@@ -281,18 +281,21 @@
       return [s];
     }
 
-    // Unique Pastel Row Styling based strictly on section name
+  // Unique Pastel Row Styling based on the FULL string hash so 2A, 2B, 2C, etc. get completely different colors
     function getRowPastelStyle(sectionName, isFiltered) {
       if (!isFiltered || !sectionName) return '';
       let hash = 0;
       let cleanStr = String(sectionName).trim().toUpperCase();
+      
+      // Hash every single character in the string for a truly unique color footprint
       for (let i = 0; i < cleanStr.length; i++) {
         hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
       }
-      let h = Math.abs(hash) % 360;
+      
+      // Spread across the full 360-degree color wheel using absolute math
+      let h = Math.abs(hash * 37) % 360; 
       return `background-color: hsl(${h}, 70%, 93%);`;
     }
-
     function getAmenityLocationClass(locStr) {
       if (!locStr) return 'loc-default';
       let l = String(locStr).toLowerCase();
