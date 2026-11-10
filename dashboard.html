@@ -116,6 +116,7 @@
       color: #1e293b;
       font-weight: 600;
       vertical-align: middle;
+      background-color: #ffffff; /* Clean white default for ALL Students view */
     }
     .no-data { text-align: center; padding: 40px; color: #64748b; font-style: italic; background: #ffffff !important; }
     
@@ -271,7 +272,7 @@
       }
       if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
         grades.push("4th Grade");
-        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A") || upperS.includes("4B")) grades.push("3rd Grade");
+        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A" ) || upperS.includes("4B")) grades.push("3rd Grade");
         return grades;
       }
 
@@ -281,9 +282,9 @@
       return [s];
     }
 
-    // Unique Pastel Row Styling based strictly on the exact section name string
-    function getRowPastelStyle(sectionName) {
-      if (!sectionName) return 'background-color: #ffffff;';
+    // Unique Pastel Row Styling only active when a specific grade or section is selected
+    function getRowPastelStyle(sectionName, isFiltered) {
+      if (!isFiltered || !sectionName) return 'background-color: #ffffff;';
       let hash = 0;
       let cleanStr = String(sectionName).trim().toUpperCase();
       for (let i = 0; i < cleanStr.length; i++) {
@@ -384,6 +385,9 @@
         return;
       }
 
+      // Determine if a specific grade or section is currently filtered (excluding ALL)
+      let isFilteredView = (selectedGrade !== 'ALL' || selectedSection !== 'ALL');
+
       filtered.forEach(row => {
         let nameVal = row[6] || 'Unknown';
         let idVal = row[1] || '';
@@ -407,8 +411,8 @@
         let locClass = getAmenityLocationClass(locVal);
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
 
-        // Unique Pastel Background per Section
-        let rowStyle = getRowPastelStyle(sectVal);
+        // Unique Pastel Background per Section (Only applied if filtered by grade/section)
+        let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
 
         let tr = document.createElement('tr');
         tr.setAttribute('style', rowStyle);
