@@ -48,6 +48,7 @@
     .success { background: #e0f7fa; color: #0b4f6c; border: 3px solid var(--coatl-teal); }
     .error { background: #ffebee; color: var(--coatl-red); border: 3px solid var(--coatl-red); }
     .processing { background: #fef3c7; color: #92400e; border: 3px solid #f59e0b; }
+    #rosterStatus { font-size: 11px; color: #64748b; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -66,6 +67,7 @@
         <option value="Cafeteria">Cafeteria</option>
         <option value="ABC Dismissal">ABC Dismissal</option>
       </select>
+      <div id="rosterStatus">Loading roster memory...</div>
     </div>
 
     <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
@@ -84,18 +86,47 @@
     </div>
   </div>
 
-  <!-- Hidden iframe & form to submit data securely -->
   <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
   <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
     <input type="hidden" name="code" id="formCode">
     <input type="hidden" name="location" id="formLocation">
     <input type="hidden" name="method" id="formMethod">
+    <input type="hidden" name="name" id="formName">
+    <input type="hidden" name="section" id="formSection">
+    <input type="hidden" name="teacher" id="formTeacher">
   </form>
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
     let html5QrCode = null;
     let torchOn = false;
+    let studentRoster = {};
+
+    window.onload = function() {
+      var savedLoc = localStorage.getItem('coatl_dismissal_loc');
+      if (savedLoc) document.getElementById('locationSelect').value = savedLoc;
+
+      var input = document.getElementById('scanInput');
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') submitScan(input.value.trim(), 'Typed');
+      });
+
+      // Load roster into browser memory for instant local name lookups
+      fetch(APPS_SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            data.forEach(student => {
+              studentRoster[String(student.id).trim()] = student;
+            });
+            document.getElementById('rosterStatusinnerText = '✅ Roster Loaded (' + Object.keys(studentRoster).length + ' students)');
+            document.getElementById('rosterStatus').style.color = '#0b4f6c';
+          }
+        })
+        .catch(err => {
+          document.getElementById('rosterStatus').innerText = '⚠️ Roster offline (using ID fallback)';
+        });
+    };
 
     function playBeep() {
       try {
@@ -111,16 +142,6 @@
         osc.stop(audioCtx.currentTime + 0.12);
       } catch (e) {}
     }
-
-    window.onload = function() {
-      var savedLoc = localStorage.getItem('coatl_dismissal_loc');
-      if (savedLoc) document.getElementById('locationSelect').value = savedLoc;
-
-      var input = document.getElementById('scanInput');
-      input.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') submitScan(input.value.trim(), 'Typed');
-      });
-    };
 
     function initCamera() {
       document.getElementById('startBtn').style.display = 'none';
@@ -146,7 +167,7 @@
           }
         } catch(e) {}
       }).catch(err => {
-        showAlert("Camera access blocked. Please allow permissions in browser settings.", "error", false);
+        showAlert("Camera access blocked. Please allow permissions.", "error", false);
         document.getElementById('startBtn').style.display = 'block';
         document.getElementById('reader').style.display = 'none';
       });
@@ -169,10 +190,10 @@
       }
       if (html5QrCode && html5QrCode.isScanning) html5QrCode.pause();
       playBeep();
-      submitScan(code, 'Scanned'); // Marks method as Scanned
+      submitScan(code, 'Scanned');
     }
 
-  function submitScan(code, method) {
+    function submitScan(code, method) {
       var location = document.getElementById('locationSelect').value;
       if (!code) {
         showAlert('Please enter or scan an ID.', 'error', true);
@@ -180,52 +201,39 @@
         return;
       }
 
-      showAlert('Looking up & logging ' + code + '...', 'processing', false);
+      // INSTANT LOCAL ROSTER LOOKUP
+      let student = studentRoster[code];
+      let studentName = student ? student.name : ("ID: " + code);
+      let section = student ? student.section : "";
+      let teacher = student ? student.teacher : "";
 
-      // Create a unique JSONP callback function name
-      var cbName = 'cb_' + Date.now();
-      window[cbName] = function(res) {
-        // Clean up the temporary script tag
-        var scriptEl = document.getElementById(cbName);
-        if (scriptEl) scriptEl.remove();
-        delete window[cbName];
+      showAlert('✅ ' + studentName + ' (' + location + ')', 'success', true);
+      if ("vibrate" in navigator) navigator.vibrate(200);
 
-        if (res && res.status === 'success') {
-          playBeep();
-          // DISPLAY THE STUDENT NAME ON SCREEN!
-          showAlert('✅ ' + res.studentName + ' (' + res.location + ')', 'success', true);
-          if ("vibrate" in navigator) navigator.vibrate(200);
-        } else {
-          showAlert('✅ Logged ID: ' + code, 'success', true);
-        }
-      };
-
-      // Inject JSONP script tag to fetch name and log simultaneously
-      var script = document.createElement('script');
-      script.id = cbName;
-      script.src = APPS_SCRIPT_URL + '?code=' + encodeURIComponent(code) + 
-                   '&location=' + encodeURIComponent(location) + 
-                   '&method=' + encodeURIComponent(method) + 
-                   '&callback=' + cbName;
-      
-      script.onerror = function() {
-        showAlert('✅ Logged: ID ' + code + ' (' + location + ')', 'success', true);
-      };
-
-      document.body.appendChild(script);
+      // Send to Google Sheet in the background via hidden form
+      try {
+        document.getElementById('formCode').value = code;
+        document.getElementById('formLocation').value = location;
+        document.getElementById('formMethod').value = method;
+        document.getElementById('formName').value = studentName;
+        document.getElementById('formSection').value = section;
+        document.getElementById('formTeacher').value = teacher;
+        document.getElementById('scanForm').submit();
+      } catch (err) {}
 
       document.getElementById('scanInput').value = '';
       setTimeout(function() {
         if (html5QrCode) { try { html5QrCode.resume(); } catch(e) {} }
       }, 1500);
     }
+
     function showAlert(message, type, autoHide) {
       var box = document.getElementById('alertBox');
       box.innerText = message;
       box.className = type;
       box.style.display = 'block';
       if (autoHide) {
-        setTimeout(function() { box.style.display = 'none'; }, 2500);
+        setTimeout(function() { box.style.display = 'none'; }, 3000);
       }
     }
   </script>
