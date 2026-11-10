@@ -180,6 +180,7 @@
       showAlert('Logging ID: ' + code + '...', 'processing', false);
 
       try {
+        // Send data to Apps Script backend
         await fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -187,8 +188,8 @@
           body: "code=" + encodeURIComponent(code) + "&location=" + encodeURIComponent(location)
         });
 
-        // INSTANT SUCCESS CONFIRMATION WITH STUDENT ID & LOCATION
-        showAlert('✅ ID ' + code + ' | ' + location + ' Logged!', 'success', true);
+        // Display confirmation instantly
+        showAlert('✅ Logged: ID ' + code + ' (' + location + ')', 'success', true);
         if ("vibrate" in navigator) navigator.vibrate(200);
       } catch (err) {
         showAlert('Network error: ' + err.message, 'error', true);
