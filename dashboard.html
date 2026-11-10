@@ -71,22 +71,20 @@
             <th>Location</th>
             <th>Method</th>
           </tr>
-        كنولوجي
-          <tbody id="logTableBody">
-            <tr><td colspan="4" style="text-align:center; color:#64748b;">Loading recent dismissal logs...</td></tr>
-          </tbody>
+        </thead>
+        <tbody id="logTableBody">
+          <tr><td colspan="4" style="text-align:center; color:#64748b;">Loading recent dismissal logs...</td></tr>
+        </tbody>
       </table>
     </div>
     <div id="statusMsg">Connected to Apps Script backend</div>
   </div>
 
   <script>
-    // Replace with your actual Apps Script Web App URL if needed
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
 
     window.onload = function() {
       loadDismissalData();
-      // Auto-refresh every 15 seconds during dismissal
       setInterval(loadDismissalData, 15000);
     };
 
@@ -104,10 +102,9 @@
 
       var script = document.createElement('script');
       script.id = cbName;
-      // Request log history from Apps Script backend
       script.src = APPS_SCRIPT_URL + '?callback=' + cbName + '&action=logs';
       script.onerror = function() {
-        document.getElementById('statusMsginnerText = '⚠️ Unable to sync live logs (backend offline)';
+        document.getElementById('statusMsg').innerText = '⚠️ Unable to sync live logs (backend offline)';
       };
       document.body.appendChild(script);
     }
@@ -122,7 +119,6 @@
         return;
       }
 
-      // Show most recent first (up to 20 rows)
       logs.slice(-20).reverse().forEach(log => {
         var tr = document.createElement('tr');
         tr.innerHTML = `
