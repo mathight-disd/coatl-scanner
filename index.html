@@ -172,7 +172,7 @@
       submitScan(code, 'Scanned'); // Marks method as Scanned
     }
 
-    function submitScan(code, method) {
+   function submitScan(code, method) {
       var location = document.getElementById('locationSelect').value;
       if (!code) {
         showAlert('Please enter or scan an ID.', 'error', true);
@@ -188,7 +188,10 @@
         document.getElementById('formMethod').value = method;
         document.getElementById('scanForm').submit();
 
-        showAlert('✅ Logged (' + method + '): ' + code, 'success', true);
+        // INSTANT LOCAL FEEDBACK
+        // Note: Because it's a hidden iframe form submit, we instantly display a clean confirmation.
+        // If you want the exact roster name to show here, we can pull it via a quick lookup or let the sheet log it.
+        showAlert('✅ Logged (' + method + '): ID ' + code + ' | ' + location, 'success', true);
         if ("vibrate" in navigator) navigator.vibrate(200);
       } catch (err) {
         showAlert('Network error: ' + err.message, 'error', true);
