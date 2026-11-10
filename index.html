@@ -73,7 +73,7 @@
 
     <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
     
-    <!-- iOS Native Camera Photo Fallback (Guaranteed to work if WebKit live stream acts up) -->
+    <!-- iOS Native Camera Photo Fallback -->
     <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleIOSPhotoCapture(event)">
     <label for="iosCameraInput" id="iosFallbackBtn" class="start-cam-btn" style="background:#13264E; display:none;">📸 Tap to Snap Badge (iOS Mode)</label>
 
@@ -91,21 +91,12 @@
     </div>
   </div>
 
-  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-  <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
-    <input type="hidden" name="code" id="formCode">
-    <input type="hidden" name="location" id="formLocation">
-    <input type="hidden" name="method" id="formMethod">
-    <input type="hidden" name="name" id="formName">
-    <input type="hidden" name="section" id="formSection">
-    <input type="hidden" name="teacher" id="formTeacher">
-  </form>
-
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
     let html5QrCode = null;
     let torchOn = false;
     let studentRoster = {};
+    let isProcessingScan = false;
 
     window.onload = function() {
       var savedLoc = localStorage.getItem('coatl_dismissal_loc');
@@ -159,40 +150,39 @@
       } catch (e) {}
     }
 
-    function initCamera() {
+    async function initCamera() {
       document.getElementById('startBtn').style.display = 'none';
       document.getElementById('reader').style.display = 'block';
 
-      html5QrCode = new Html5Qrcode("reader", { 
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        verbose: false
-      });
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader", { verbose: false });
+      }
 
-      // iOS-optimized constraints (prevents freezing & forces proper focus)
       const config = { 
-        fps: 20, 
+        fps: 15, 
         qrbox: { width: 220, height: 220 },
         aspectRatio: 1.0
       };
       
-      html5QrCode.start(
-        { facingMode: "environment" }, 
-        config, 
-        onScanSuccess,
-        function(error) {}
-      ).then(() => {
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" }, 
+          config, 
+          onScanSuccess,
+          function(error) {}
+        );
+
         try {
           const cap = html5QrCode.getRunningTrackCameraCapabilities();
           if (cap && cap.torchFeature && cap.torchFeature().isSupported()) {
             document.getElementById('torchBtn').style.display = 'inline-block';
           }
         } catch(e) {}
-      }).catch(err => {
-        // If iOS Safari blocks or chokes on live stream, gracefully unveil the native photo snapper!
+      } catch (err) {
         document.getElementById('reader').style.display = 'none';
         document.getElementById('iosFallbackBtn').style.display = 'block';
         showAlert("Live stream restricted on this iOS browser. Tap the dark blue button to snap badges!", "processing", false);
-      });
+      }
     }
 
     function toggleTorch() {
@@ -205,17 +195,15 @@
     }
 
     function onScanSuccess(decodedText) {
+      if (isProcessingScan) return;
       let code = decodedText.trim();
       if (code.includes('code=')) {
         var match = code.match(/[?&]code=([^&]+)/);
         if (match) code = decodeURIComponent(match[1]);
       }
-      if (html5QrCode && html5QrCode.isScanning) html5QrCode.pause();
-      playBeep();
       submitScan(code, 'Scanned');
     }
 
-    // High-speed fallback for iOS devices where live viewfinders are finicky
     async function handleIOSPhotoCapture(event) {
       var file = event.target.files[0];
       if (!file) return;
@@ -242,7 +230,6 @@
         event.target.value = '';
 
         if (code) {
-          playBeep();
           submitScan(code, 'Scanned');
         } else {
           showAlert("Could not read QR. Hold steady and try again.", "error", true);
@@ -252,45 +239,47 @@
     }
 
     function submitScan(code, method) {
-      var location = document.getElementById('locationSelect').value;
+      if (isProcessingScan) return;
       if (!code) {
         showAlert('Please enter or scan an ID.', 'error', true);
-        if (html5QrCode && !html5QrCode.isScanning) { try { html5QrCode.resume(); } catch(e){} }
         return;
       }
+
+      isProcessingScan = true;
+      playBeep();
 
       let student = studentRoster[code];
       let studentName = student ? student.name : ("ID: " + code);
       let section = student ? student.section : "";
       let teacher = student ? student.teacher : "";
 
-      showAlert('✅ ' + studentName + ' (' + location + ')', 'success', true);
+      showAlert('✅ ' + studentName + ' (' + document.getElementById('locationSelect').value + ')', 'success', true);
       if ("vibrate" in navigator) navigator.vibrate(200);
 
-      try {
-        document.getElementById('formCode').value = code;
-        document.getElementById('formLocation').value = location;
-        document.getElementById('formMethod').value = method;
-        document.getElementById('formName').value = studentName;
-        document.getElementById('formSection').value = section;
-        document.getElementById('formTeacher').value = teacher;
-        document.getElementById('scanForm').submit();
-      } catch (err) {}
+      // Use fetch() instead of a hidden form submit to ensure reliable async error recovery without freezing iOS WebKit threads
+      var location = document.getElementById('locationSelect').value;
+      var params = new URLSearchParams();
+      params.append('code', code);
+      params.append('location', location);
+      params.append('method', method);
+      params.append('name', studentName);
+      params.append('section', section);
+      params.append('teacher', teacher);
 
-      document.getElementById('scanInput').value = '';
-      setTimeout(function() {
-        if (html5QrCode) { try { html5QrCode.resume(); } catch(e) {} }
-      }, 1500);
-    }
-
-    function showAlert(message, type, autoHide) {
-      var box = document.getElementById('alertBox');
-      box.innerText = message;
-      box.className = type;
-      box.style.display = 'block';
-      if (autoHide) {
-        setTimeout(function() { box.style.display = 'none'; }, 3000);
-      }
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: params
+      }).then(() => {
+        // Success cleanup
+      }).catch(err => {
+        console.error("Network submit error:", err);
+      }).finally(() => {
+        document.getElementById('scanInput').value = '';
+        setTimeout(function() {
+          isProcessingScan = false;
+        }, 1200);
+      });
     }
   </script>
 </body>
