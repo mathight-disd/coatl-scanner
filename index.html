@@ -187,7 +187,8 @@
           body: "code=" + encodeURIComponent(code) + "&location=" + encodeURIComponent(location)
         });
 
-        showAlert('✅ ID ' + code + ' | Logged Successfully!', 'success', true);
+        // INSTANT SUCCESS CONFIRMATION WITH STUDENT ID & LOCATION
+        showAlert('✅ ID ' + code + ' | ' + location + ' Logged!', 'success', true);
         if ("vibrate" in navigator) navigator.vibrate(200);
       } catch (err) {
         showAlert('Network error: ' + err.message, 'error', true);
