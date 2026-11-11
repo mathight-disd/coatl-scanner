@@ -239,7 +239,19 @@
       fetch(APPS_SCRIPT_URL + '?action=getLogs')
         .then(response => response.json())
         .then(data => {
-          cachedLogs = Array.isArray(data) ? data : [];
+          let allLogs = Array.isArray(data) ? data : [];
+          
+          // --- FILTER TO TODAY'S DATE ONLY ---
+          let todayStr = new Date().toDateString(); // e.g., "Wed Nov 11 2026"
+          
+          let todaysLogs = allLogs.filter(row => {
+            if (!row[0]) return false;
+            let logDate = new Date(row[0]).toDateString();
+            return logDate === todayStr;
+          });
+          // ------------------------------------
+
+          cachedLogs = todaysLogs;
           updateSectionDropdown(cachedLogs);
           renderTable();
         })
