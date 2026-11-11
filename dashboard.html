@@ -236,29 +236,42 @@
     let cachedLogs = [];
 
     function fetchLogs() {
-      fetch(APPS_SCRIPT_URL + '?action=getLogs')
-        .then(response => response.json())
-        .then(data => {
-          let allLogs = Array.isArray(data) ? data : [];
-          
-          // --- FILTER TO TODAY'S DATE ONLY ---
-          let todayStr = new Date().toDateString(); // e.g., "Wed Nov 11 2026"
-          
-          let todaysLogs = allLogs.filter(row => {
-            if (!row[0]) return false;
-            let logDate = new Date(row[0]).toDateString();
-            return logDate === todayStr;
-          });
-          // ------------------------------------
+      // Create a unique global callback function name
+      var callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+      
+      window[callbackName] = function(data) {
+        // Clean up the temporary global function
+        delete window[callbackName];
+        var scriptTag = document.getElementById(callbackName);
+        if (scriptTag) scriptTag.remove();
 
-          cachedLogs = todaysLogs;
-          updateSectionDropdown(cachedLogs);
-          renderTable();
-        })
-        .catch(err => {
-          console.error("Fetch error:", err);
-          document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
+        let allLogs = Array.isArray(data) ? data : [];
+        
+        // Filter to today's date only
+        let todayStr = new Date().toDateString();
+        let todaysLogs = allLogs.filter(row => {
+          if (!row[0]) return false;
+          let logDate = new Date(row[0]).toDateString();
+          return logDate === todayStr;
         });
+
+        cachedLogs = todaysLogs;
+        updateSectionDropdown(cachedLogs);
+        renderTable();
+      };
+
+      // Construct script URL with the callback parameter
+      var script = document.createElement('script');
+      script.id = callbackName;
+      script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=' + callbackName;
+      
+      script.onerror = function(err) {
+        console.error("JSONP fetch error:", err);
+        document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
+      };
+
+      // Append to document to execute request cross-origin without CORS blocks
+      document.body.appendChild(script);
     }
 
     function getSectionGrades(sectionStr) {
