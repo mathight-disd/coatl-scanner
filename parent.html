@@ -195,38 +195,24 @@
         delete window[cbName];
 
         if (Array.isArray(data)) {
-          matchedStudentsList = [];
-          
-          data.forEach(student => {
-            let token = String(student.token || student.familyToken || '').trim();
-            if (token === familyToken) {
-              matchedStudentsList.push(student);
-            }
-          });
-
-          if (matchedStudentsList.length > 0) {
-            let html = `<label>Students in Family:</label>`;
-            matchedStudentsList.forEach((st, idx) => {
-              html += `
-                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 2px solid #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
-                  <div style="text-align: left;">
-                    <div style="font-size: 16px; font-weight: 900; color: var(--coatl-navy);">${st.name}</div>
-                    <div style="font-size: 12px; color: var(--coatl-red); font-weight: 700;">Homeroom: ${st.section || 'General'}</div>
-                  </div>
-                  <input type="checkbox" class="student-checkbox" data-index="${idx}" checked style="width: 24px; height: 24px; accent-color: var(--coatl-teal); cursor: pointer;">
-                </div>
-              `;
-            });
-            document.getElementById('inputContainerArea').innerHTML = html;
-          } else {
-            document.getElementById('inputContainerArea').innerHTML = `
-              <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
-                ⚠️ Invalid or expired access link. Please contact the front office.
-              </div>
-            `;
-          }
+          // Process your data here...
         }
       };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName;
+      script.onerror = function() {
+        // This triggers if an adblocker or extension blocks the script entirely
+        console.error("Script load blocked by browser security or extension.");
+        document.getElementById('inputContainerArea').innerHTML = `
+          <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
+            ⚠️ Connection blocked. Please disable adblockers or privacy shields for this site.
+          </div>
+        `;
+      };
+      document.body.appendChild(script);
+    }
 
       var script = document.createElement('script');
       script.id = cbName;
