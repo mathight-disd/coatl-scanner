@@ -425,7 +425,10 @@
         let methodVal = row[3] || 'Scanned';
         let sectVal = row[7] || '';
         let teachVal = row[8] || '';
-        let photoUrl = row[9] || '';
+       // Lookup photo dynamically from your loaded roster using the student ID, with fallback
+        let photoUrl = (typeof studentRoster !== 'undefined' && studentRoster[idVal] && studentRoster[idVal].photo) 
+                       ? studentRoster[idVal].photo 
+                       : (row[9] || '');
 
         // Student picture/avatar
         let visualHtml = '';
