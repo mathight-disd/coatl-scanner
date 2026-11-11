@@ -105,13 +105,13 @@
 
   <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
   <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
-  <input type="hidden" name="code" id="formCode">
-  <input type="hidden" name="location" id="formLocation">
-  <input type="hidden" name="method" id="formMethod">
-  <input type="hidden" name="name" id="formName">
-  <input type="hidden" name="section" id="formSection">
-  <input type="hidden" name="teacher" id="formTeacher">
-</form>
+    <input type="hidden" name="code" id="formCode">
+    <input type="hidden" name="location" id="formLocation">
+    <input type="hidden" name="method" id="formMethod">
+    <input type="hidden" name="name" id="formName">
+    <input type="hidden" name="section" id="formSection">
+    <input type="hidden" name="teacher" id="formTeacher">
+  </form>
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
@@ -199,7 +199,7 @@
           let st = matchedStudentsList[idx];
           selectedCount++;
 
-          // Submit check-in to Google Sheet backend
+          // Submit check-in to Google Sheet backend using correct form ID 'scanForm'
           try {
             document.getElementById('formCode').value = st.id;
             document.getElementById('formLocation').value = location + " (Parent Check-In)";
@@ -207,12 +207,12 @@
             document.getElementById('formName').value = st.name;
             document.getElementById('formSection').value = st.section || "";
             document.getElementById('formTeacher').value = st.teacher || "";
-            document.getElementById('checkInForm').submit();
+            document.getElementById('scanForm').submit();
           } catch (err) {
             console.error("Submission error:", err);
           }
 
-          // Build visual pass card (supports photo URL from sheet or initials fallback)
+          // Build visual pass card supporting student photo URLs directly
           let photoUrl = st.photo || st.photoUrl || '';
           let visualHtml = '';
           if (photoUrl && String(photoUrl).startsWith('http')) {
