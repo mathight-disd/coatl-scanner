@@ -258,24 +258,31 @@
         return;
       }
 
-      // Stagger submissions sequentially with a small delay so multi-student family check-ins never race/drop
-      selectedStudents.forEach((st, index) => {
-        setTimeout(() => {
-          try {
-            document.getElementById('formCode').value = st.id;
-            document.getElementById('formLocation').value = location + " (Parent Check-In)";
-            document.getElementById('formMethod').value = "Parent Portal";
-            document.getElementById('formName').value = st.name;
-            document.getElementById('formSection').value = st.section || "";
-            document.getElementById('formTeacher').value = st.teacher || "";
-            document.getElementById('scanForm').submit();
-          } catch (err) {
-            console.error("Submission error for " + st.name, err);
-          }
-        }, index * 400); // 400ms gap between each child's log submission
+      // Send each selected student to your Apps Script backend via secure fetch requests
+      selectedStudents.forEach(st => {
+        let payload = {
+          code: st.id,
+          location: location + " (Parent Check-In)",
+          method: "Parent Portal",
+          name: st.name,
+          section: st.section || "",
+          teacher: st.teacher || ""
+        };
+
+        // Use fetch with no-cors or standard JSON handling depending on your Apps Script doPost setup
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors', 
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams(payload)
+        }).catch(err => {
+          console.error("Check-in submission error for " + st.name, err);
+        });
       });
 
-      // Build visual pass cards
+      // Build visual pass cards for the parent confirmation screen
       let passHtml = '';
       selectedStudents.forEach(st => {
         let photoUrl = st.photo || st.photoUrl || '';
@@ -303,7 +310,6 @@
       document.getElementById('passCardsContainer').innerHTML = passHtml;
       document.getElementById('portalPassView').style.display = 'block';
     }
-
     function resetPortalView() {
       document.getElementById('portalPassView').style.display = 'none';
       document.getElementById('portalFormView').style.display = 'block';
