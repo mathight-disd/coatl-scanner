@@ -230,24 +230,44 @@
     </div>
   </div>
 
-  <script>
+ <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
 
     let cachedLogs = [];
+    let studentRoster = {}; // Store student details & photos keyed by ID
+
+    // Fetch full roster on load to map photos and metadata
+    function fetchRoster() {
+      var callbackName = 'jsonp_roster_' + Math.round(100000 * Math.random());
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        document.getElementById(callbackName)?.remove();
+        
+        if (Array.isArray(data)) {
+          data.forEach(student => {
+            if (student.id) {
+              studentRoster[String(student.id).trim()] = student;
+            }
+          });
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = callbackName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + callbackName;
+      document.body.appendChild(script);
+    }
 
     function fetchLogs() {
-      // Create a unique global callback function name
       var callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
       
       window[callbackName] = function(data) {
-        // Clean up the temporary global function
         delete window[callbackName];
         var scriptTag = document.getElementById(callbackName);
         if (scriptTag) scriptTag.remove();
 
         let allLogs = Array.isArray(data) ? data : [];
         
-        // Filter to today's date only
         let todayStr = new Date().toDateString();
         let todaysLogs = allLogs.filter(row => {
           if (!row[0]) return false;
@@ -260,7 +280,6 @@
         renderTable();
       };
 
-      // Construct script URL with the callback parameter
       var script = document.createElement('script');
       script.id = callbackName;
       script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=' + callbackName;
@@ -270,7 +289,6 @@
         document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
       };
 
-      // Append to document to execute request cross-origin without CORS blocks
       document.body.appendChild(script);
     }
 
@@ -290,7 +308,6 @@
       if (upperS.startsWith("1") || upperS.includes("1ST")) return ["1st Grade"];
       if (upperS.startsWith("2") || upperS.includes("2ND")) return ["2nd Grade"];
       
-      // Split level 3rd & 4th grade cross-listing
       if (upperS.startsWith("3") || upperS.includes("3RD")) {
         grades.push("3rd Grade");
         if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) grades.push("4th Grade");
@@ -308,21 +325,19 @@
       return [s];
     }
 
-  // Unique Pastel Row Styling based on the FULL string hash so 2A, 2B, 2C, etc. get completely different colors
     function getRowPastelStyle(sectionName, isFiltered) {
       if (!isFiltered || !sectionName) return '';
       let hash = 0;
       let cleanStr = String(sectionName).trim().toUpperCase();
       
-      // Hash every single character in the string for a truly unique color footprint
       for (let i = 0; i < cleanStr.length; i++) {
         hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
       }
       
-      // Spread across the full 360-degree color wheel using absolute math
       let h = Math.abs(hash * 37) % 360; 
       return `background-color: hsl(${h}, 70%, 93%);`;
     }
+
     function getAmenityLocationClass(locStr) {
       if (!locStr) return 'loc-default';
       let l = String(locStr).toLowerCase();
@@ -333,7 +348,6 @@
       return 'loc-default';
     }
 
-    // RESTORED: Handles dropdown change event cleanly
     function onGradeChange() {
       updateSectionDropdown(cachedLogs);
       renderTable();
@@ -377,7 +391,6 @@
         return;
       }
 
-      // 1. Sort all raw logs chronologically (newest first)
       let sortedLogs = [...cachedLogs].sort((a, b) => {
         let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
         let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
@@ -386,7 +399,6 @@
         return timeB - timeA;
       });
 
-      // 2. Deduplicate: Keep only the FIRST (newest) occurrence of each Student ID
       let uniqueMap = new Map();
       sortedLogs.forEach(row => {
         if (!row || row.length < 8) return;
@@ -397,7 +409,6 @@
       });
       let deduplicatedLogs = Array.from(uniqueMap.values());
 
-      // 3. Filter by Grade and Section
       let filtered = deduplicatedLogs.filter(row => {
         let sectionVal = row[7] || "";
         let studentGrades = getSectionGrades(sectionVal);
@@ -415,7 +426,6 @@
         return;
       }
 
-      // Pastel coloring activates whenever Grade Level is NOT 'ALL'
       let isFilteredView = (selectedGrade !== 'ALL');
 
       filtered.forEach(row => {
@@ -425,12 +435,10 @@
         let methodVal = row[3] || 'Scanned';
         let sectVal = row[7] || '';
         let teachVal = row[8] || '';
-       // Lookup photo dynamically from your loaded roster using the student ID, with fallback
-        let photoUrl = (typeof studentRoster !== 'undefined' && studentRoster[idVal] && studentRoster[idVal].photo) 
-                       ? studentRoster[idVal].photo 
-                       : (row[9] || '');
+        
+        // Pull photo directly from studentRoster object matched by ID
+        let photoUrl = (studentRoster[idVal] && studentRoster[idVal].photo) ? studentRoster[idVal].photo : '';
 
-        // Student picture/avatar
         let visualHtml = '';
         if (photoUrl && String(photoUrl).startsWith('http')) {
           visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
@@ -440,11 +448,9 @@
         }
         let studentHtml = `<div class="student-cell">${visualHtml}<span style="color:var(--coatl-navy); font-weight:800;">${nameVal}</span></div>`;
 
-        // Color-coded Location Badge
         let locClass = getAmenityLocationClass(locVal);
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
 
-        // Unique Pastel Background per Section
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
 
         let tr = document.createElement('tr');
@@ -460,8 +466,9 @@
     }
 
     window.onload = function() {
-      fetchLogs();
-      setInterval(fetchLogs, 5000);
+      fetchRoster(); // Load student pictures & details map
+      fetchLogs();   // Load scan activity
+      setInterval(fetchLogs, 5000); // Refresh feed every 5s
     };
   </script>
 </body>
