@@ -168,18 +168,28 @@
     .loc-walker { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
     .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
     .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+    /* Flashing pulse animation for high repeat frequency check-ins */
+    @keyframes pulseFlash {
+      0% { opacity: 1; background-color: #fff5f5; }
+      50% { opacity: 0.5; background-color: #fee2e2; }
+      100% { opacity: 1; background-color: #fff5f5; }
+    }
+    .max-repeat-alert {
+      animation: pulseFlash 1.5s infinite ease-in-out;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <div class="header-left">
-  <img src="logo.png" alt="Kiest Coatls Logo" class="mascot-avatar" style="object-fit: cover;">
-  <div>
-    <h2>Edwin J. Kiest Coatls</h2>
-    <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 2px;">LIVE DISMISSAL MONITOR</div>
-  </div>
-</div>
+        <img src="logo.png" alt="Kiest Coatls Logo" class="mascot-avatar" style="object-fit: cover;">
+        <div>
+          <h2>Edwin J. Kiest Coatls</h2>
+          <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 2px;">LIVE DISMISSAL MONITOR</div>
+        </div>
+      </div>
       <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
     </div>
 
@@ -230,13 +240,12 @@
     </div>
   </div>
 
- <script>
+  <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
 
     let cachedLogs = [];
     let studentRoster = {}; // Store student details & photos keyed by ID
 
-    // Fetch full roster on load to map photos and metadata
     function fetchRoster() {
       var callbackName = 'jsonp_roster_' + Math.round(100000 * Math.random());
       window[callbackName] = function(data) {
@@ -453,7 +462,7 @@
         let dynamicFontSize = repeatCount > 1 ? Math.min(baseFontSize + ((repeatCount - 1) * 3), 24) : baseFontSize;
         
         let repeatBadge = repeatCount > 1 
-          ? `<span style="background: var(--coatl-red); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 800;">${repeatCount}x Today</span>` 
+          ? `<span class="${repeatCount >= 3 ? 'max-repeat-alert' : ''}" style="background: var(--coatl-red); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 800; display: inline-block;">${repeatCount}x Today</span>` 
           : '';
 
         // Pull photo directly from studentRoster object matched by ID
@@ -473,11 +482,16 @@
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
 
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
+        let rowClass = '';
         if (repeatCount > 1) {
-          rowStyle += ' background-color: #fff5f5 !important;'; // Highlight repeat check-in rows in soft red
+          rowStyle += ' background-color: #fff5f5 !important;';
+        }
+        if (repeatCount >= 3) {
+          rowClass = 'max-repeat-alert'; // Triggers the smooth pulsing flash animation once a student hits 3+ check-ins
         }
 
         let tr = document.createElement('tr');
+        if (rowClass) tr.className = rowClass;
         if (rowStyle) tr.setAttribute('style', rowStyle);
         tr.innerHTML = '<td>' + studentHtml + '</td>' +
                        '<td>' + idVal + '</td>' +
@@ -490,9 +504,9 @@
     }
 
     window.onload = function() {
-      fetchRoster(); // Load student pictures & details map
-      fetchLogs();   // Load scan activity
-      setInterval(fetchLogs, 5000); // Refresh feed every 5s
+      fetchRoster();
+      fetchLogs();
+      setInterval(fetchLogs, 5000);
     };
   </script>
 </body>
