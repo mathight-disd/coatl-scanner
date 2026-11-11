@@ -125,11 +125,7 @@
         delete window[cbName];
 
         if (Array.isArray(data)) {
-          data.forEach(student => {
-            studentRoster[String(student.id).trim()] = student;
-          });
-          document.getElementById('rosterStatus').innerText = '✅ Roster Loaded (' + Object.keys(studentRoster).length + ' students)';
-          document.getElementById('rosterStatus').style.color = '#0b4f6c';
+          // Process your data here...
         }
       };
 
@@ -137,7 +133,13 @@
       script.id = cbName;
       script.src = APPS_SCRIPT_URL + '?callback=' + cbName;
       script.onerror = function() {
-        document.getElementById('rosterStatus').innerText = '⚠️ Roster offline (using ID fallback)';
+        // This triggers if an adblocker or extension blocks the script entirely
+        console.error("Script load blocked by browser security or extension.");
+        document.getElementById('inputContainerArea').innerHTML = `
+          <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
+            ⚠️ Connection blocked. Please disable adblockers or privacy shields for this site.
+          </div>
+        `;
       };
       document.body.appendChild(script);
     }
