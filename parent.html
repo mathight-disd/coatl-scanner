@@ -80,11 +80,11 @@
       <div class="form-group">
         <label for="locationSelect">Pickup Location / Method:</label>
         <select id="locationSelect">
+          <option value="ABC Dismissal">ABC Dismissal</option>
           <option value="Millmar Carline (Back)">Millmar Carline (Back)</option>
           <option value="Millmar Walkup (Back)">Millmar Walkup (Back)</option>
           <option value="Healey Carline (Front)">Healey Carline (Front)</option>
           <option value="Healey Walkup (Front)">Healey Walkup (Front)</option>
-          <option value="ABC Dismissal">ABC Dismissal</option>
         </select>
       </div>
 
@@ -120,6 +120,28 @@
     
     let matchedStudentsList = [];
 
+    // Exact school campus & street boundary polygon coordinates
+    const SCHOOL_POLYGON = [
+      { lat: 32.82512870862098, lng: -96.66808758726606 },
+      { lat: 32.82525737814139, lng: -96.66983873397201 },
+      { lat: 32.826847353243,   lng: -96.66991936545789 },
+      { lat: 32.82687493314338,  lng: -96.66806106946919 }
+    ];
+
+    function isPointInPolygon(point, polygon) {
+      let x = point.lat, y = point.lng;
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        let xi = polygon[i].lat, yi = polygon[i].lng;
+        let xj = polygon[j].lat, yj = polygon[j].lng;
+        
+        let intersect = ((yi > y) !== (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
     window.onload = function() {
       if (!familyToken) {
         document.getElementById('inputContainerArea').innerHTML = `
@@ -130,7 +152,40 @@
         return;
       }
       loadRosterJSONP();
+      verifyGeofence();
     };
+
+    function verifyGeofence() {
+      if (!navigator.geolocation) {
+        showAlert("Geolocation is not supported by your browser.", "error");
+        return;
+      }
+
+      showAlert("Verifying your arrival zone...", "success");
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          let userLat = position.coords.latitude;
+          let userLng = position.coords.longitude;
+          
+          let userPoint = { lat: userLat, lng: userLng };
+          let isInZone = isPointInPolygon(userPoint, SCHOOL_POLYGON);
+          
+          if (isInZone) {
+            document.getElementById('submitBtn').style.display = 'block';
+            showAlert("📍 Arrival zone verified! You may check in.", "success");
+          } else {
+            document.getElementById('submitBtn').style.display = 'none';
+            showAlert("⚠️ You must be at the school arrival zone to notify pickup.", "error");
+          }
+        },
+        (error) => {
+          console.error("GPS error:", error);
+          showAlert("⚠️ Please enable location services to verify your arrival.", "error");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
 
     function loadRosterJSONP() {
       var cbName = 'roster_cb_' + Date.now();
@@ -163,7 +218,6 @@
               `;
             });
             document.getElementById('inputContainerArea').innerHTML = html;
-            document.getElementById('submitBtn').style.display = 'block';
           } else {
             document.getElementById('inputContainerArea').innerHTML = `
               <div style="background: #ffebee; color: var(--coatl-red); padding: 14px; border-radius: 8px; border: 2px solid var(--coatl-red); font-weight: 700; text-align: center;">
@@ -189,17 +243,24 @@
 
     function submitParentCheckIn() {
       let checkboxes = document.querySelectorAll('.student-checkbox');
-      let selectedCount = 0;
-      let passHtml = '';
+      let selectedStudents = [];
       let location = document.getElementById('locationSelect').value;
 
       checkboxes.forEach(chk => {
         if (chk.checked) {
           let idx = chk.getAttribute('data-index');
-          let st = matchedStudentsList[idx];
-          selectedCount++;
+          selectedStudents.push(matchedStudentsList[idx]);
+        }
+      });
 
-          // Submit check-in to Google Sheet backend using correct form ID 'scanForm'
+      if (selectedStudents.length === 0) {
+        showAlert("Please select at least one student to check in.", "error");
+        return;
+      }
+
+      // Stagger submissions sequentially with a small delay so multi-student family check-ins never race/drop
+      selectedStudents.forEach((st, index) => {
+        setTimeout(() => {
           try {
             document.getElementById('formCode').value = st.id;
             document.getElementById('formLocation').value = location + " (Parent Check-In)";
@@ -209,35 +270,33 @@
             document.getElementById('formTeacher').value = st.teacher || "";
             document.getElementById('scanForm').submit();
           } catch (err) {
-            console.error("Submission error:", err);
+            console.error("Submission error for " + st.name, err);
           }
-
-          // Build visual pass card supporting student photo URLs directly
-          let photoUrl = st.photo || st.photoUrl || '';
-          let visualHtml = '';
-          if (photoUrl && String(photoUrl).startsWith('http')) {
-            visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${st.name}">`;
-          } else {
-            let initial = st.name && st.name.charAt(0) !== 'U' ? st.name.charAt(0) : '?';
-            visualHtml = `<div class="student-initials">${initial}</div>`;
-          }
-
-          passHtml += `
-            <div class="pass-card">
-              ${visualHtml}
-              <div style="font-size: 18px; font-weight: 900; color: var(--coatl-navy);">${st.name}</div>
-              <div style="font-size: 13px; color: #64748b; font-weight: 700; margin-top: 2px;">Homeroom: ${st.section || 'General'}</div>
-              <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 4px;">Teacher: ${st.teacher || 'Staff'}</div>
-              <div class="arrived-badge">📍 ${location}</div>
-            </div>
-          `;
-        }
+        }, index * 400); // 400ms gap between each child's log submission
       });
 
-      if (selectedCount === 0) {
-        showAlert("Please select at least one student to check in.", "error");
-        return;
-      }
+      // Build visual pass cards
+      let passHtml = '';
+      selectedStudents.forEach(st => {
+        let photoUrl = st.photo || st.photoUrl || '';
+        let visualHtml = '';
+        if (photoUrl && String(photoUrl).startsWith('http')) {
+          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${st.name}">`;
+        } else {
+          let initial = st.name && st.name.charAt(0) !== 'U' ? st.name.charAt(0) : '?';
+          visualHtml = `<div class="student-initials">${initial}</div>`;
+        }
+
+        passHtml += `
+          <div class="pass-card">
+            ${visualHtml}
+            <div style="font-size: 18px; font-weight: 900; color: var(--coatl-navy);">${st.name}</div>
+            <div style="font-size: 13px; color: #64748b; font-weight: 700; margin-top: 2px;">Homeroom: ${st.section || 'General'}</div>
+            <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 4px;">Teacher: ${st.teacher || 'Staff'}</div>
+            <div class="arrived-badge">📍 ${location}</div>
+          </div>
+        `;
+      });
 
       // Switch view from form to active pickup pass
       document.getElementById('portalFormView').style.display = 'none';
