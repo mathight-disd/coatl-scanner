@@ -289,10 +289,20 @@
       let studentName = student ? student.name : ("ID: " + code);
       let section = student ? student.section : "";
       let teacher = student ? student.teacher : "";
+      
+      // Grab student photo from the roster object, with fallback
+      let studentPhoto = (student && student.photo) ? student.photo : "https://lh3.googleusercontent.com/d/146otTzK-r13z4ZAnzvExVB0nHt7Kg-ko";
+      
       var location = document.getElementById('locationSelect').value;
 
       showAlert('✅ ' + studentName + ' (' + location + ')', 'success', true);
       if ("vibrate" in navigator) navigator.vibrate(200);
+
+      // Optional: If you have an <img> tag on screen to show the student's photo while scanning
+      var photoDisplay = document.getElementById('studentPhotoDisplay');
+      if (photoDisplay) {
+        photoDisplay.src = studentPhoto;
+      }
 
       try {
         document.getElementById('formCode').value = code;
@@ -301,6 +311,13 @@
         document.getElementById('formName').value = studentName;
         document.getElementById('formSection').value = section;
         document.getElementById('formTeacher').value = teacher;
+        
+        // Ensure you have a hidden input in your scanForm with id="formPhoto"
+        var photoInput = document.getElementById('formPhoto');
+        if (photoInput) {
+          photoInput.value = studentPhoto;
+        }
+
         document.getElementById('scanForm').submit();
       } catch (err) {
         console.error("Form submit error:", err);
