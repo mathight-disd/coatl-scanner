@@ -488,11 +488,12 @@
 
         let tr = document.createElement('tr');
         
-        // Threshold rules: 2x or 3x hold electric orange; 4+ triggers the continuous color flash
+        // Threshold rules: 2x or 3x hold electric orange; 4+ forces the multi-color flash
         if (repeatCount >= 2 && repeatCount <= 3) {
           tr.className = 'two-repeat-highlight';
         } else if (repeatCount >= 4) {
           tr.className = 'max-repeat-alert';
+          // Force inline CSS to guarantee keyframe execution on dynamic rows
           tr.style.cssText = 'animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;';
         } else if (rowStyle && isFilteredView) {
           tr.setAttribute('style', rowStyle);
