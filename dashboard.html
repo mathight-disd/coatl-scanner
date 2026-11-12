@@ -230,67 +230,52 @@
     let cachedLogs = [];
     let studentRoster = {}; 
 
-    // Fetch full roster on load to map photos and metadata using JSONP
-    function fetchRoster() {
-      var callbackName = 'jsonp_roster_' + Math.round(100000 * Math.random());
-      window[callbackName] = function(data) {
-        delete window[callbackName];
-        document.getElementById(callbackName)?.remove();
-        
-        if (Array.isArray(data)) {
-          data.forEach(student => {
-            if (student.id) {
-              studentRoster[String(student.id).trim()] = student;
-            }
-          });
-        }
-      };
+    // Global helper to handle incoming roster data safely
+    window.__handleRoster = function(data) {
+      if (Array.isArray(data)) {
+        data.forEach(student => {
+          if (student.id) {
+            studentRoster[String(student.id).trim()] = student;
+          }
+        });
+      }
+    };
 
+    function fetchRoster() {
       var script = document.createElement('script');
-      script.id = callbackName;
-      script.src = APPS_SCRIPT_URL + '?callback=' + callbackName;
+      script.src = APPS_SCRIPT_URL + '?callback=__handleRoster';
+      script.onerror = function() { console.error("Failed to load roster script."); };
       document.body.appendChild(script);
     }
 
-    // Fetch live logs using JSONP with timeout safety
-    function fetchLogs() {
-      var callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+    // Global helper to handle incoming live logs safely
+    window.__handleLogs = function(data) {
+      let allLogs = Array.isArray(data) ? data : [];
       
-      let timeoutTimer = setTimeout(() => {
-        if (window[callbackName]) {
-          delete window[callbackName];
-          document.getElementById(callbackName)?.remove();
-          document.getElementById('liveStatus').innerText = '🟡 Feed Timeout (Retrying...)';
-        }
-      }, 6000);
+      let todayStr = new Date().toDateString();
+      let todaysLogs = allLogs.filter(row => {
+        if (!row || !row[0]) return false;
+        let logDate = new Date(row[0]).toDateString();
+        return logDate === todayStr;
+      });
 
-      window[callbackName] = function(data) {
-        clearTimeout(timeoutTimer);
-        delete window[callbackName];
-        var scriptTag = document.getElementById(callbackName);
-        if (scriptTag) scriptTag.remove();
+      cachedLogs = todaysLogs;
+      updateSectionDropdown(cachedLogs);
+      renderTable();
+      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
+    };
 
-        let allLogs = Array.isArray(data) ? data : [];
-        
-        let todayStr = new Date().toDateString();
-        let todaysLogs = allLogs.filter(row => {
-          if (!row || !row[0]) return false;
-          let logDate = new Date(row[0]).toDateString();
-          return logDate === todayStr;
-        });
-
-        cachedLogs = todaysLogs;
-        updateSectionDropdown(cachedLogs);
-        renderTable();
-        document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
-      };
+    function fetchLogs() {
+      // Remove any previously injected log script to prevent DOM clutter
+      let oldScript = document.getElementById('dynamicLogScript');
+      if (oldScript) oldScript.remove();
 
       var script = document.createElement('script');
-      script.id = callbackName;
-      script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=' + callbackName;
+      script.id = 'dynamicLogScript';
+      // Appending a timestamp prevents browser caching from freezing live updates
+      script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=__handleLogs&_=' + new Date().getTime();
       
       script.onerror = function(err) {
-        clearTimeout(timeoutTimer);
         console.error("JSONP script load error:", err);
         document.getElementById('liveStatus').innerText = '🔴 Connection Error';
         document.getElementById('logTableBody').innerHTML = '<tr><td colspan="6" class="no-data">Unable to connect to Apps Script backend.</td></tr>';
@@ -505,5 +490,3 @@
       setInterval(fetchLogs, 5000);
     };
   </script>
-</body>
-</html>
