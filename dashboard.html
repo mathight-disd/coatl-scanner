@@ -494,9 +494,18 @@
         }
 
         let tr = document.createElement('tr');
-        if (rowClass) tr.className = rowClass;
-        if (rowStyle && !rowClass) tr.setAttribute('style', rowStyle); // Only apply pastel if no repeat alert is active
         
+        if (rowClass === 'max-repeat-alert') {
+          tr.className = 'max-repeat-alert';
+          // Force inline animation styling so the browser renders the flash immediately
+          tr.style.cssText = 'animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important; background-color: #fef08a !important;';
+        } else if (rowClass === 'two-repeat-highlight') {
+          tr.className = 'two-repeat-highlight';
+          tr.style.backgroundColor = '#ffedd5';
+        } else if (rowStyle) {
+          tr.setAttribute('style', rowStyle);
+        }
+      
         tr.innerHTML = '<td>' + studentHtml + '</td>' +
                        '<td>' + idVal + '</td>' +
                        '<td>' + locationHtml + '</td>' +
