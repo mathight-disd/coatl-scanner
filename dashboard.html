@@ -488,14 +488,13 @@
 
         let tr = document.createElement('tr');
         
-        if (rowClass === 'max-repeat-alert') {
-          tr.className = 'max-repeat-alert';
-          // Force inline animation styling so the browser renders the flash immediately
-          tr.style.cssText = 'animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important; background-color: #fef08a !important;';
-        } else if (rowClass === 'two-repeat-highlight') {
+        // Threshold rules: 2x or 3x hold electric orange; 4+ triggers the continuous color flash
+        if (repeatCount >= 2 && repeatCount <= 3) {
           tr.className = 'two-repeat-highlight';
-          tr.style.backgroundColor = '#ffedd5';
-        } else if (rowStyle) {
+        } else if (repeatCount >= 4) {
+          tr.className = 'max-repeat-alert';
+          tr.style.cssText = 'animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;';
+        } else if (rowStyle && isFilteredView) {
           tr.setAttribute('style', rowStyle);
         }
       
