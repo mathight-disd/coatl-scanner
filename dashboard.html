@@ -153,15 +153,29 @@
     .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
     .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
-    /* Yellow ➔ Red ➔ Green flashing pulse animation across the entire table row for 3+ check-ins */
+    /* Yellow ➔ Red ➔ Green flashing pulse animation */
     @keyframes yellowRedGreenFlash {
       0% { background-color: #fef08a !important; } /* Bright Yellow */
-      33% { background-color: #fee2e2 !important; } /* Vibrant Red/Pink */
+      33% { background-color: #fee2e2 !important; } /* Vibrant Red */
       66% { background-color: #bbf7d0 !important; } /* Neon Green */
       100% { background-color: #fef08a !important; }
     }
-    .max-repeat-alert {
-      animation: yellowRedGreenFlash 1.5s infinite ease-in-out;
+    
+    /* Apply animation to both row and cells for bulletproof rendering */
+    tr.max-repeat-alert {
+      animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;
+    }
+    tr.max-repeat-alert td {
+      animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;
+      background-color: transparent !important; /* Let keyframes handle color */
+    }
+
+    /* Stable 2x check-in highlight */
+    .two-repeat-highlight {
+      background-color: #ffedd5 !important;
+    }
+    .two-repeat-highlight td {
+      background-color: #ffedd5 !important;
     }
   </style>
 </head>
@@ -471,16 +485,18 @@
 
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
         let rowClass = '';
+        
+        // Persistent highlighting rules for repeated check-ins
         if (repeatCount === 2) {
-          rowStyle += ' background-color: #ffedd5 !important;'; 
-        }
-        if (repeatCount > 3) {
-          rowClass = 'max-repeat-alert'; 
+          rowClass = 'two-repeat-highlight'; // Electric orange tint that stays persistent
+        } else if (repeatCount >= 4) {
+          rowClass = 'max-repeat-alert';     // Triggers Yellow ➔ Red ➔ Green flashing pulse for 3+
         }
 
         let tr = document.createElement('tr');
         if (rowClass) tr.className = rowClass;
-        if (rowStyle) tr.setAttribute('style', rowStyle);
+        if (rowStyle && !rowClass) tr.setAttribute('style', rowStyle); // Only apply pastel if no repeat alert is active
+        
         tr.innerHTML = '<td>' + studentHtml + '</td>' +
                        '<td>' + idVal + '</td>' +
                        '<td>' + locationHtml + '</td>' +
