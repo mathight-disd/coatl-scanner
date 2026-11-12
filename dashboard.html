@@ -137,3 +137,377 @@
     }
     .student-initials {
       width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--coatl-teal);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .section-text {
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    /* Dismissal Location Color Badges */
+    .location-badge {
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+    .loc-carline { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .loc-bus { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .loc-walker { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+    /* High-contrast flashing pulse animation for high repeat frequency check-ins */
+    @keyframes highContrastFlash {
+      0% { background-color: #fef08a; } /* Bright Yellow */
+      50% { background-color: #bbf7d0; } /* Neon Green */
+      100% { background-color: #fef08a; }
+    }
+    .max-repeat-alert {
+      animation: highContrastFlash 1.2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-left">
+        <img src="logo.png" alt="Kiest Coatls Logo" class="mascot-avatar" style="object-fit: cover;">
+        <div>
+          <h2>Edwin J. Kiest Coatls</h2>
+          <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 2px;">LIVE DISMISSAL MONITOR</div>
+        </div>
+      </div>
+      <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
+    </div>
+
+    <!-- Filter Control Bar -->
+    <div class="controls-bar">
+      <div class="control-group">
+        <label for="gradeFilter">1. Select Grade Level:</label>
+        <select id="gradeFilter" onchange="onGradeChange()">
+          <option value="ALL">ALL Students</option>
+          <option value="Pre-K">Pre-K</option>
+          <option value="Kinder">Kinder</option>
+          <option value="1st Grade">1st Grade</option>
+          <option value="2nd Grade">2nd Grade</option>
+          <option value="3rd Grade">3rd Grade</option>
+          <option value="4th Grade">4th Grade</option>
+          <option value="5th Grade">5th Grade</option>
+          <option value="6th Grade">6th Grade</option>
+          <option value="FLS & TC">FLS & TC</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="sectionFilter">2. Select Section / Homeroom:</label>
+        <select id="sectionFilter" onchange="renderTable()">
+          <option value="ALL">All Sections</option>
+        </select>
+      </div>
+
+      <div style="margin-left: auto; font-size: 13px; color: #64748b; font-weight: 600;" id="recordCount">Loading logs...</div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Student Name</th>
+            <th>ID</th>
+            <th>Location</th>
+            <th>Method</th>
+            <th>Section</th>
+            <th>Teacher</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody">
+          <tr><td colspan="6" class="no-data">Loading recent dismissal logs...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+
+    let cachedLogs = [];
+    let studentRoster = {}; // Store student details & photos keyed by ID
+
+    function fetchRoster() {
+      var callbackName = 'jsonp_roster_' + Math.round(100000 * Math.random());
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        document.getElementById(callbackName)?.remove();
+        
+        if (Array.isArray(data)) {
+          data.forEach(student => {
+            if (student.id) {
+              studentRoster[String(student.id).trim()] = student;
+            }
+          });
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = callbackName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + callbackName;
+      document.body.appendChild(script);
+    }
+
+    function fetchLogs() {
+      var callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+      
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        var scriptTag = document.getElementById(callbackName);
+        if (scriptTag) scriptTag.remove();
+
+        let allLogs = Array.isArray(data) ? data : [];
+        
+        let todayStr = new Date().toDateString();
+        let todaysLogs = allLogs.filter(row => {
+          if (!row[0]) return false;
+          let logDate = new Date(row[0]).toDateString();
+          return logDate === todayStr;
+        });
+
+        cachedLogs = todaysLogs;
+        updateSectionDropdown(cachedLogs);
+        renderTable();
+      };
+
+      var script = document.createElement('script');
+      script.id = callbackName;
+      script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=' + callbackName;
+      
+      script.onerror = function(err) {
+        console.error("JSONP fetch error:", err);
+        document.getElementById('liveStatus').innerText = '🔴 Error loading feed';
+      };
+
+      document.body.appendChild(script);
+    }
+
+    function getSectionGrades(sectionStr) {
+      if (!sectionStr) return ["Other"];
+      let s = String(sectionStr).trim();
+      let upperS = s.toUpperCase();
+      let grades = [];
+
+      if (upperS === "7A" || upperS.includes("7A")) {
+        return ["Pre-K", "Kinder", "1st Grade", "2nd Grade", "3rd Grade", "4th Grade", "5th Grade", "6th Grade", "FLS & TC"];
+      }
+
+      if (upperS.includes("FLS") || upperS.includes("TC")) return ["FLS & TC"];
+      if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) return ["Pre-K"];
+      if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) return ["Kinder"];
+      if (upperS.startsWith("1") || upperS.includes("1ST")) return ["1st Grade"];
+      if (upperS.startsWith("2") || upperS.includes("2ND")) return ["2nd Grade"];
+      
+      if (upperS.startsWith("3") || upperS.includes("3RD")) {
+        grades.push("3rd Grade");
+        if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) grades.push("4th Grade");
+        return grades;
+      }
+      if (upperS.startsWith("4") && !upperS.includes("FLS") && !upperS.includes("EC")) {
+        grades.push("4th Grade");
+        if (upperS === "4A" || upperS === "4B" || upperS.includes("4A") || upperS.includes("4B")) grades.push("3rd Grade");
+        return grades;
+      }
+
+      if (upperS.startsWith("5") || upperS.includes("5TH")) return ["5th Grade"];
+      if (upperS.startsWith("6") || upperS.includes("6TH")) return ["6th Grade"];
+
+      return [s];
+    }
+
+    function getRowPastelStyle(sectionName, isFiltered) {
+      if (!isFiltered || !sectionName) return '';
+      let hash = 0;
+      let cleanStr = String(sectionName).trim().toUpperCase();
+      
+      for (let i = 0; i < cleanStr.length; i++) {
+        hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      
+      let h = Math.abs(hash * 37) % 360; 
+      return `background-color: hsl(${h}, 70%, 93%);`;
+    }
+
+    function getAmenityLocationClass(locStr) {
+      if (!locStr) return 'loc-default';
+      let l = String(locStr).toLowerCase();
+      if (l.includes('carline') || l.includes('millmar')) return 'loc-carline';
+      if (l.includes('bus')) return 'loc-bus';
+      if (l.includes('walk')) return 'loc-walker';
+      if (l.includes('daycare') || l.includes('after')) return 'loc-daycare';
+      return 'loc-default';
+    }
+
+    function onGradeChange() {
+      updateSectionDropdown(cachedLogs);
+      renderTable();
+    }
+
+    function updateSectionDropdown(data) {
+      const selectedGrade = document.getElementById('gradeFilter').value;
+      const select = document.getElementById('sectionFilter');
+      const currentSelection = select.value;
+      
+      let filteredData = data;
+      if (selectedGrade !== 'ALL') {
+        filteredData = data.filter(row => {
+          if (!row || !row[7]) return false;
+          let grades = getSectionGrades(row[7]);
+          return grades.includes(selectedGrade);
+        });
+      }
+      
+      const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
+      
+      let html = '<option value="ALL">All Sections</option>';
+      sections.forEach(sec => {
+        html += `<option value="${sec}">${sec}</option>`;
+      });
+      
+      select.innerHTML = html;
+      select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('logTableBody');
+      const selectedGrade = document.getElementById('gradeFilter').value;
+      const selectedSection = document.getElementById('sectionFilter').value;
+      
+      tbody.innerHTML = '';
+
+      if (!cachedLogs || cachedLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
+        document.getElementById('recordCount').innerText = '0 records';
+        return;
+      }
+
+      // Tally up total check-in occurrences for each student ID today
+      let checkInCounts = {};
+      cachedLogs.forEach(row => {
+        if (row && row.length > 1) {
+          let id = String(row[1] || '').trim();
+          if (id) {
+            checkInCounts[id] = (checkInCounts[id] || 0) + 1;
+          }
+        }
+      });
+
+      let sortedLogs = [...cachedLogs].sort((a, b) => {
+        let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
+        let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
+        if (isNaN(timeA)) timeA = 0;
+        if (isNaN(timeB)) timeB = 0;
+        return timeB - timeA;
+      });
+
+      let uniqueMap = new Map();
+      sortedLogs.forEach(row => {
+        if (!row || row.length < 8) return;
+        let studentId = String(row[1] || '').trim();
+        if (studentId && !uniqueMap.has(studentId)) {
+          uniqueMap.set(studentId, row);
+        }
+      });
+      let deduplicatedLogs = Array.from(uniqueMap.values());
+
+      let filtered = deduplicatedLogs.filter(row => {
+        let sectionVal = row[7] || "";
+        let studentGrades = getSectionGrades(sectionVal);
+
+        let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
+        let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
+        return matchesGrade && matchesSection;
+      });
+
+      document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
+      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
+        return;
+      }
+
+      let isFilteredView = (selectedGrade !== 'ALL');
+
+      filtered.forEach(row => {
+        let nameVal = row[6] || 'Unknown';
+        let idVal = String(row[1] || '').trim();
+        let locVal = row[2] || 'Carline';
+        let methodVal = row[3] || 'Scanned';
+        let sectVal = row[7] || '';
+        let teachVal = row[8] || '';
+        
+        // Calculate repeat frequency and dynamic high-contrast styling
+        let repeatCount = checkInCounts[idVal] || 1;
+        let baseFontSize = 14;
+        let dynamicFontSize = repeatCount > 1 ? Math.min(baseFontSize + ((repeatCount - 1) * 3), 24) : baseFontSize;
+        
+        let repeatBadge = repeatCount > 1 
+          ? `<span class="${repeatCount >= 3 ? 'max-repeat-alert' : ''}" style="background: #ea580c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 900; display: inline-block; border: 1px solid #c2410c;">${repeatCount}x Today</span>` 
+          : '';
+
+        // Pull photo directly from studentRoster object matched by ID
+        let photoUrl = (studentRoster[idVal] && studentRoster[idVal].photo) ? studentRoster[idVal].photo : '';
+
+        let visualHtml = '';
+        if (photoUrl && String(photoUrl).startsWith('http')) {
+          visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
+        } else {
+          let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
+          visualHtml = `<div class="student-initials">${initial}</div>`;
+        }
+        
+        let studentHtml = `<div class="student-cell">${visualHtml}<span style="font-size: ${dynamicFontSize}px; font-weight: ${repeatCount > 1 ? '900' : '800'}; color: var(--coatl-navy);">${nameVal}</span>${repeatBadge}</div>`;
+
+        let locClass = getAmenityLocationClass(locVal);
+        let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
+
+        let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
+        let rowClass = '';
+        if (repeatCount > 1) {
+          rowStyle += ' background-color: #ffedd5 !important;'; // Bright electric orange tint for 2x check-ins
+        }
+        if (repeatCount >= 3) {
+          rowClass = 'max-repeat-alert'; // Triggers high-contrast flashing yellow/green pulse for 3+ check-ins
+        }
+
+        let tr = document.createElement('tr');
+        if (rowClass) tr.className = rowClass;
+        if (rowStyle) tr.setAttribute('style', rowStyle);
+        tr.innerHTML = '<td>' + studentHtml + '</td>' +
+                       '<td>' + idVal + '</td>' +
+                       '<td>' + locationHtml + '</td>' +
+                       '<td><span style="background:rgba(255,255,255,0.7); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
+                       '<td><span class="section-text">' + sectVal + '</span></td>' +
+                       '<td>' + teachVal + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.onload = function() {
+      fetchRoster();
+      fetchLogs();
+      setInterval(fetchLogs, 5000);
+    };
+  </script>
+</body>
+</html>
