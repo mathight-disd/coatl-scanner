@@ -169,14 +169,14 @@
     .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
     .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
-    /* Flashing pulse animation for high repeat frequency check-ins */
-    @keyframes pulseFlash {
-      0% { opacity: 1; background-color: #fff5f5; }
-      50% { opacity: 0.5; background-color: #fee2e2; }
-      100% { opacity: 1; background-color: #fff5f5; }
+    /* High-contrast flashing pulse animation for high repeat frequency check-ins */
+    @keyframes highContrastFlash {
+      0% { background-color: #fef08a; } /* Bright Yellow */
+      50% { background-color: #bbf7d0; } /* Neon Green */
+      100% { background-color: #fef08a; }
     }
     .max-repeat-alert {
-      animation: pulseFlash 1.5s infinite ease-in-out;
+      animation: highContrastFlash 1.2s infinite ease-in-out;
     }
   </style>
 </head>
@@ -456,13 +456,13 @@
         let sectVal = row[7] || '';
         let teachVal = row[8] || '';
         
-        // Calculate repeat check-in frequency and dynamic styling
+        // Calculate repeat frequency and dynamic high-contrast styling
         let repeatCount = checkInCounts[idVal] || 1;
         let baseFontSize = 14;
         let dynamicFontSize = repeatCount > 1 ? Math.min(baseFontSize + ((repeatCount - 1) * 3), 24) : baseFontSize;
         
         let repeatBadge = repeatCount > 1 
-          ? `<span class="${repeatCount >= 3 ? 'max-repeat-alert' : ''}" style="background: var(--coatl-red); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 800; display: inline-block;">${repeatCount}x Today</span>` 
+          ? `<span class="${repeatCount >= 3 ? 'max-repeat-alert' : ''}" style="background: #ea580c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 900; display: inline-block; border: 1px solid #c2410c;">${repeatCount}x Today</span>` 
           : '';
 
         // Pull photo directly from studentRoster object matched by ID
@@ -484,10 +484,10 @@
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
         let rowClass = '';
         if (repeatCount > 1) {
-          rowStyle += ' background-color: #fff5f5 !important;';
+          rowStyle += ' background-color: #ffedd5 !important;'; // Bright electric orange tint for 2x check-ins
         }
         if (repeatCount >= 3) {
-          rowClass = 'max-repeat-alert'; // Triggers the smooth pulsing flash animation once a student hits 3+ check-ins
+          rowClass = 'max-repeat-alert'; // Triggers high-contrast flashing yellow/green pulse for 3+ check-ins
         }
 
         let tr = document.createElement('tr');
