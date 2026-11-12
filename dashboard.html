@@ -153,21 +153,10 @@
     .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
     .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
-   @keyframes yellowRedGreenFlash {
-      0% { background-color: #fef08a !important; } /* Bright Yellow */
-      33% { background-color: #fee2e2 !important; } /* Vibrant Red */
-      66% { background-color: #bbf7d0 !important; } /* Neon Green */
-      100% { background-color: #fef08a !important; }
-    }
-    
-    /* Target cells directly so the browser paints the background cycle */
-    .max-repeat-alert td {
-      animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;
-    }
-
-    .two-repeat-highlight td {
-      background-color: #ffedd5 !important;
-    }
+    /* Bright Stable Highlight Classes */
+    .highlight-2x { background-color: #ffedd5 !important; } /* Electric Orange */
+    .highlight-3x { background-color: #fef08a !important; } /* Bright Yellow */
+    .highlight-4plus { background-color: #fee2e2 !important; } /* Vibrant Red/Pink */
   </style>
 </head>
 <body>
@@ -235,7 +224,6 @@
     let cachedLogs = [];
     let studentRoster = {}; 
 
-    // Global stable JSONP listener for roster data
     window.__handleRoster = function(data) {
       let scriptEl = document.getElementById('dynamicRosterScript');
       if (scriptEl) scriptEl.remove();
@@ -259,7 +247,6 @@
       document.body.appendChild(script);
     }
 
-    // Global stable JSONP listener for live log data
     window.__handleLogs = function(data) {
       let scriptEl = document.getElementById('dynamicLogScript');
       if (scriptEl) scriptEl.remove();
@@ -395,7 +382,6 @@
         return;
       }
 
-      // Tally up total check-in occurrences for each student ID today
       let checkInCounts = {};
       cachedLogs.forEach(row => {
         if (row && row.length > 1) {
@@ -475,22 +461,15 @@
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
 
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
-        let rowClass = '';
-        
-        // Persistent highlighting rules for repeated check-ins
-        if (repeatCount === 2) {
-          rowClass = 'two-repeat-highlight'; // Electric orange tint that stays persistent
-        } else if (repeatCount >= 4) {
-          rowClass = 'max-repeat-alert';     // Triggers Yellow ➔ Red ➔ Green flashing pulse for 3+
-        }
-
         let tr = document.createElement('tr');
         
-        // Threshold rules: 2x or 3x hold electric orange; 4+ triggers the multi-color flash class
-        if (repeatCount >= 2 && repeatCount <= 3) {
-          tr.className = 'two-repeat-highlight';
+        // Clean and reliable highlight assignment based on scan count
+        if (repeatCount === 2) {
+          tr.className = 'highlight-2x';
+        } else if (repeatCount === 3) {
+          tr.className = 'highlight-3x';
         } else if (repeatCount >= 4) {
-          tr.className = 'max-repeat-alert';
+          tr.className = 'highlight-4plus';
         } else if (rowStyle && isFilteredView) {
           tr.setAttribute('style', rowStyle);
         }
@@ -501,14 +480,6 @@
                        '<td><span style="background:rgba(255,255,255,0.7); color:#334155; padding:3px 8px; border-radius:4px; font-size:11px; border:1px solid rgba(0,0,0,0.1);">' + methodVal + '</span></td>' +
                        '<td><span class="section-text">' + sectVal + '</span></td>' +
                        '<td>' + teachVal + '</td>';
-                       
-        // If 4+, ensure every child <td> inherits the animation explicitly
-        if (repeatCount >= 4) {
-          Array.from(tr.children).forEach(td => {
-            td.style.animation = 'yellowRedGreenFlash 1.5s infinite ease-in-out';
-          });
-        }
-
         tbody.appendChild(tr);
       });
     }
