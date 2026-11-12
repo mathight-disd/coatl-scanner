@@ -153,7 +153,7 @@
     .loc-daycare { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
     .loc-default { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
-    /* Yellow ➔ Red ➔ Green flashing pulse animation */
+   /* Yellow ➔ Red ➔ Green flashing pulse animation for 4+ check-ins */
     @keyframes yellowRedGreenFlash {
       0% { background-color: #fef08a !important; } /* Bright Yellow */
       33% { background-color: #fee2e2 !important; } /* Vibrant Red */
@@ -161,20 +161,13 @@
       100% { background-color: #fef08a !important; }
     }
     
-    /* Apply animation to both row and cells for bulletproof rendering */
-    tr.max-repeat-alert {
+    /* Apply keyframes directly to the row and cells without a static background override */
+    tr.max-repeat-alert, tr.max-repeat-alert td {
       animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;
-    }
-    tr.max-repeat-alert td {
-      animation: yellowRedGreenFlash 1.5s infinite ease-in-out !important;
-      background-color: transparent !important; /* Let keyframes handle color */
     }
 
-    /* Stable 2x check-in highlight */
-    .two-repeat-highlight {
-      background-color: #ffedd5 !important;
-    }
-    .two-repeat-highlight td {
+    /* Persistent highlight for 2x or 3x check-ins */
+    .two-repeat-highlight, .two-repeat-highlight td {
       background-color: #ffedd5 !important;
     }
   </style>
