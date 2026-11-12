@@ -230,8 +230,11 @@
     let cachedLogs = [];
     let studentRoster = {}; 
 
-    // Global helper to handle incoming roster data safely
+    // Global stable JSONP listener for roster data
     window.__handleRoster = function(data) {
+      let scriptEl = document.getElementById('dynamicRosterScript');
+      if (scriptEl) scriptEl.remove();
+
       if (Array.isArray(data)) {
         data.forEach(student => {
           if (student.id) {
@@ -242,14 +245,20 @@
     };
 
     function fetchRoster() {
+      let oldScript = document.getElementById('dynamicRosterScript');
+      if (oldScript) oldScript.remove();
+
       var script = document.createElement('script');
-      script.src = APPS_SCRIPT_URL + '?callback=__handleRoster';
-      script.onerror = function() { console.error("Failed to load roster script."); };
+      script.id = 'dynamicRosterScript';
+      script.src = APPS_SCRIPT_URL + '?callback=__handleRoster&_=' + new Date().getTime();
       document.body.appendChild(script);
     }
 
-    // Global helper to handle incoming live logs safely
+    // Global stable JSONP listener for live log data
     window.__handleLogs = function(data) {
+      let scriptEl = document.getElementById('dynamicLogScript');
+      if (scriptEl) scriptEl.remove();
+
       let allLogs = Array.isArray(data) ? data : [];
       
       let todayStr = new Date().toDateString();
@@ -266,13 +275,11 @@
     };
 
     function fetchLogs() {
-      // Remove any previously injected log script to prevent DOM clutter
       let oldScript = document.getElementById('dynamicLogScript');
       if (oldScript) oldScript.remove();
 
       var script = document.createElement('script');
       script.id = 'dynamicLogScript';
-      // Appending a timestamp prevents browser caching from freezing live updates
       script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=__handleLogs&_=' + new Date().getTime();
       
       script.onerror = function(err) {
@@ -490,3 +497,5 @@
       setInterval(fetchLogs, 5000);
     };
   </script>
+</body>
+</html>
