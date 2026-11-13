@@ -255,19 +255,25 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        let v = avg < 120 ? 0 : 255;
-        data[i] = v;     
-        data[i + 1] = v; 
-        data[i + 2] = v; 
-      }
-
       canvas.remove();
 
       try {
-        const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
+        // 1. First attempt: Try raw un-mangled data (Best for Android reading digital phone screens)
+        let code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
+
+        // 2. Second attempt: If raw fails, apply the high-contrast threshold filter (Best for iOS / glare)
+        if (!code) {
+          let data = imgData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            let v = avg < 120 ? 0 : 255;
+            data[i] = v;     
+            data[i + 1] = v; 
+            data[i + 2] = v; 
+          }
+          code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
+        }
+
         if (code && code.data) {
           let rawData = code.data.trim();
           if (rawData.includes('code=')) {
