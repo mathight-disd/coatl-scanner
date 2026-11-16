@@ -258,10 +258,8 @@
       canvas.remove();
 
       try {
-        // 1. First attempt: Try raw un-mangled data (Best for Android reading digital phone screens)
         let code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
 
-        // 2. Second attempt: If raw fails, apply the high-contrast threshold filter (Best for iOS / glare)
         if (!code) {
           let data = imgData.data;
           for (let i = 0; i < data.length; i += 4) {
@@ -289,23 +287,25 @@
       if (isProcessingScan) return;
       if (!code) return;
 
+      let student = studentRoster[code];
+      if (!student && Object.keys(studentRoster).length === 0) {
+        showAlert("⚠️ Roster still loading. Please wait a moment...", "error", true);
+        return;
+      }
+
       isProcessingScan = true;
       playBeep();
 
-      let student = studentRoster[code];
       let studentName = student ? student.name : ("ID: " + code);
       let section = student ? student.section : "";
       let teacher = student ? student.teacher : "";
       
-      // Grab student photo from the roster object, with fallback
       let studentPhoto = (student && student.photo) ? student.photo : "https://lh3.googleusercontent.com/d/146otTzK-r13z4ZAnzvExVB0nHt7Kg-ko";
-      
       var location = document.getElementById('locationSelect').value;
 
       showAlert('✅ ' + studentName + ' (' + location + ')', 'success', true);
       if ("vibrate" in navigator) navigator.vibrate(200);
 
-      // Optional: If you have an <img> tag on screen to show the student's photo while scanning
       var photoDisplay = document.getElementById('studentPhotoDisplay');
       if (photoDisplay) {
         photoDisplay.src = studentPhoto;
@@ -319,7 +319,6 @@
         document.getElementById('formSection').value = section;
         document.getElementById('formTeacher').value = teacher;
         
-        // Ensure you have a hidden input in your scanForm with id="formPhoto"
         var photoInput = document.getElementById('formPhoto');
         if (photoInput) {
           photoInput.value = studentPhoto;
