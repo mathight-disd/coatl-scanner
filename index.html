@@ -45,7 +45,10 @@
     .success { background: #e0f7fa; color: #0b4f6c; border: 3px solid var(--coatl-teal); }
     .error { background: #ffebee; color: var(--coatl-red); border: 3px solid var(--coatl-red); }
     .processing { background: #fef3c7; color: #92400e; border: 3px solid #f59e0b; }
-    #rosterStatus { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .roster-status-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+    #rosterStatus { font-size: 11px; color: #64748b; text-align: left; }
+    .sync-roster-btn { background: none; border: none; color: var(--coatl-teal); font-size: 11px; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; }
+    .sync-roster-btn:hover { color: var(--coatl-navy); }
   </style>
 </head>
 <body>
@@ -65,7 +68,10 @@
         <option value="Cafeteria">Cafeteria</option>
         <option value="ABC Dismissal">ABC Dismissal</option>
       </select>
-      <div id="rosterStatus">Loading roster memory...</div>
+      <div class="roster-status-bar">
+        <div id="rosterStatus">Loading roster memory...</div>
+        <button class="sync-roster-btn" onclick="forceRefreshRoster()">↻ Sync Roster</button>
+      </div>
     </div>
 
     <button class="start-cam-btn" id="startBtn" onclick="initCamera()">🎥 Start Live Scanner</button>
@@ -88,17 +94,20 @@
 
   <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
   <form id="scanForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="hidden_iframe" style="display:none;">
-  <input type="hidden" name="code" id="formCode">
-  <input type="hidden" name="location" id="formLocation">
-  <input type="hidden" name="method" id="formMethod">
-  <input type="hidden" name="name" id="formName">
-  <input type="hidden" name="section" id="formSection">
-  <input type="hidden" name="teacher" id="formTeacher">
-  <input type="hidden" name="photo" id="formPhoto">
-</form>
+    <input type="hidden" name="code" id="formCode">
+    <input type="hidden" name="location" id="formLocation">
+    <input type="hidden" name="method" id="formMethod">
+    <input type="hidden" name="name" id="formName">
+    <input type="hidden" name="section" id="formSection">
+    <input type="hidden" name="teacher" id="formTeacher">
+    <input type="hidden" name="photo" id="formPhoto">
+  </form>
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+    const ROSTER_CACHE_KEY = "coatl_roster_cache_v1";
+    const ROSTER_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
     let studentRoster = {};
     let isProcessingScan = false;
     let videoStream = null;
@@ -114,10 +123,30 @@
         if (e.key === 'Enter') submitTypedSelection();
       });
 
-      loadRosterJSONP();
+      loadRosterJSONP(false);
     };
 
-    function loadRosterJSONP() {
+    function loadRosterJSONP(forceNetwork) {
+      if (!forceNetwork) {
+        try {
+          let rawCache = localStorage.getItem(ROSTER_CACHE_KEY);
+          if (rawCache) {
+            let parsed = JSON.parse(rawCache);
+            if (parsed && parsed.roster && (Date.now() - parsed.timestamp < ROSTER_CACHE_TTL_MS)) {
+              studentRoster = parsed.roster;
+              let count = Object.keys(studentRoster).length;
+              document.getElementById('rosterStatus').innerText = '✅ Roster Cached (' + count + ' students)';
+              document.getElementById('rosterStatus').style.color = '#0b4f6c';
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Roster cache read failed, fetching fresh...");
+        }
+      }
+
+      document.getElementById('rosterStatus').innerText = '⏳ Syncing Roster from Sheets...';
+
       var cbName = 'roster_cb_' + Date.now();
       window[cbName] = function(data) {
         var el = document.getElementById(cbName);
@@ -125,21 +154,41 @@
         delete window[cbName];
 
         if (Array.isArray(data)) {
+          studentRoster = {};
           data.forEach(student => {
-            studentRoster[String(student.id).trim()] = student;
+            if (student.id) {
+              studentRoster[String(student.id).trim()] = student;
+            }
           });
-          document.getElementById('rosterStatus').innerText = '✅ Roster Loaded (' + Object.keys(studentRoster).length + ' students)';
+
+          try {
+            localStorage.setItem(ROSTER_CACHE_KEY, JSON.stringify({
+              timestamp: Date.now(),
+              roster: studentRoster
+            }));
+          } catch (err) {
+            console.warn("Could not save roster to localStorage:", err);
+          }
+
+          let count = Object.keys(studentRoster).length;
+          document.getElementById('rosterStatus').innerText = '✅ Roster Loaded (' + count + ' students)';
           document.getElementById('rosterStatus').style.color = '#0b4f6c';
         }
       };
 
       var script = document.createElement('script');
       script.id = cbName;
-      script.src = APPS_SCRIPT_URL + '?callback=' + cbName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName + '&_=' + new Date().getTime();
       script.onerror = function() {
         document.getElementById('rosterStatus').innerText = '⚠️ Roster offline (using ID fallback)';
+        document.getElementById('rosterStatus').style.color = '#991b1b';
       };
       document.body.appendChild(script);
+    }
+
+    function forceRefreshRoster() {
+      localStorage.removeItem(ROSTER_CACHE_KEY);
+      loadRosterJSONP(true);
     }
 
     function handleTypingInput(query) {
