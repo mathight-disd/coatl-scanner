@@ -344,20 +344,24 @@
       border-left: 3px solid #000000;
       padding: 24px 15px;
       text-align: center;
-      font-size: 38px;
+      font-size: 42px;
       font-weight: 900;
       text-transform: uppercase;
       color: #000000;
       word-break: break-word;
-      min-height: 160px;
+      min-height: 170px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Times New Roman', Times, serif;
     }
 
-    /* Clean Print Styles for 2/Page Portrait */
+    /* Clean Print Styles for Strictly 2 Tags Per Portrait Page */
     @media print {
+      @page {
+        size: portrait;
+        margin: 0.35in;
+      }
       body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
       .no-print { display: none !important; }
       .container { max-width: 100% !important; width: 100% !important; }
@@ -368,13 +372,18 @@
       .car-tag-box {
         width: 100% !important;
         max-width: 100% !important;
-        height: 48vh !important;
-        margin-bottom: 2vh !important;
-        page-break-after: always;
-        break-after: page;
+        height: 4.6in !important;
+        margin-bottom: 0.4in !important;
+        box-shadow: none !important;
         border: 3px solid #000000 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+      }
+      /* Force a new page after every 2nd tag so 2 fit per sheet */
+      .car-tag-box:nth-child(2n) {
+        margin-bottom: 0 !important;
+        page-break-after: always;
+        break-after: page;
       }
       .car-tag-box:last-child {
         page-break-after: avoid;
@@ -389,8 +398,31 @@
     let sectionToTeacherMap = {};
     let studentsToPrint = [];
 
-    // GitHub hosted logo reference
     const COATL_LOGO_URL = "logo.png";
+
+    // Formats "Sofia Hernandez" -> "SOFIA H" (and handles "Hernandez, Sofia" -> "SOFIA H")
+    function formatTagDisplayName(fullName) {
+      let raw = String(fullName || "").trim();
+      if (!raw) return "";
+
+      // Handle "Last, First" format just in case
+      if (raw.includes(",")) {
+        let commaParts = raw.split(",").map(p => p.trim()).filter(Boolean);
+        if (commaParts.length >= 2) {
+          let first = commaParts[1].split(/\s+/)[0];
+          let lastInitial = commaParts[0].charAt(0);
+          return (first + " " + lastInitial).toUpperCase();
+        }
+      }
+
+      let parts = raw.split(/\s+/).filter(Boolean);
+      if (parts.length === 1) {
+        return parts[0].toUpperCase();
+      }
+      let firstName = parts[0];
+      let lastInitial = parts[parts.length - 1].charAt(0);
+      return (firstName + " " + lastInitial).toUpperCase();
+    }
 
     function switchMode(mode) {
       const isRoster = (mode === 'roster');
@@ -722,6 +754,8 @@
         box.className = 'car-tag-box';
 
         const qrDivId = 'qr_tag_' + idx;
+        const shortTagName = formatTagDisplayName(student.name);
+
         box.innerHTML = `
           <div class="tag-header-row">
             <div class="tag-logo-cell tag-logo-left"><img src="${COATL_LOGO_URL}" alt="Coatls Logo"></div>
@@ -735,7 +769,7 @@
           </div>
           <div class="tag-body-row">
             <div class="tag-qr-cell" id="${qrDivId}"></div>
-            <div class="tag-name-cell">${student.name}</div>
+            <div class="tag-name-cell">${shortTagName}</div>
           </div>
         `;
         grid.appendChild(box);
