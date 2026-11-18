@@ -549,7 +549,7 @@
       fetchLogs();
       // Staggered 8-second poll with slight random jitter so classrooms don't hit Apps Script at the exact same millisecond
       let jitter = Math.floor(Math.random() * 1500);
-      setInterval(fetchLogs, 8000 + jitter);
+      setInterval(fetchLogs, 3500 + jitter);
     };
   </script>
 </body>
