@@ -244,10 +244,39 @@
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
     const ROSTER_CACHE_KEY = "coatl_roster_cache_v1";
-    const ROSTER_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // Auto-refresh roster once every 12 hours
+    const LOGS_CACHE_KEY = "coatl_logs_cache_v1";
+    const ROSTER_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
     let cachedLogs = [];
     let studentRoster = {};
+    let isFetchingLogs = false;
+
+    // 1. Instant paint from localStorage before any network call finishes
+    function hydrateFromLocalCache() {
+      try {
+        let rawRoster = localStorage.getItem(ROSTER_CACHE_KEY);
+        if (rawRoster) {
+          let parsedRoster = JSON.parse(rawRoster);
+          if (parsedRoster && parsedRoster.roster) {
+            studentRoster = parsedRoster.roster;
+          }
+        }
+
+        let rawLogs = localStorage.getItem(LOGS_CACHE_KEY);
+        if (rawLogs) {
+          let parsedLogs = JSON.parse(rawLogs);
+          let todayStr = new Date().toDateString();
+          if (parsedLogs && parsedLogs.date === todayStr && Array.isArray(parsedLogs.logs)) {
+            cachedLogs = parsedLogs.logs;
+            updateSectionDropdown(cachedLogs);
+            renderTable();
+            document.getElementById('liveStatus').innerText = '🔄 Checking for new scans...';
+          }
+        }
+      } catch (e) {
+        console.warn("Cache hydration skipped:", e);
+      }
+    }
 
     window.__handleRoster = function(data) {
       let scriptEl = document.getElementById('dynamicRosterScript');
@@ -266,11 +295,8 @@
             timestamp: Date.now(),
             roster: studentRoster
           }));
-        } catch (err) {
-          console.warn("Could not save roster to localStorage:", err);
-        }
+        } catch (err) {}
 
-        // Re-render immediately so photos populate even if logs finished loading first
         if (cachedLogs.length > 0) {
           renderTable();
         }
@@ -285,12 +311,10 @@
             let parsed = JSON.parse(rawCache);
             if (parsed && parsed.roster && (Date.now() - parsed.timestamp < ROSTER_CACHE_TTL_MS)) {
               studentRoster = parsed.roster;
-              return;
+              return; // Already fresh in cache—zero network call needed
             }
           }
-        } catch (e) {
-          console.warn("Cache read failed, fetching fresh roster...");
-        }
+        } catch (e) {}
       }
 
       let oldScript = document.getElementById('dynamicRosterScript');
@@ -298,7 +322,7 @@
 
       var script = document.createElement('script');
       script.id = 'dynamicRosterScript';
-      script.src = APPS_SCRIPT_URL + '?callback=__handleRoster&_=' + new Date().getTime();
+      script.src = APPS_SCRIPT_URL + '?callback=__handleRoster&_=' + Date.now();
       document.body.appendChild(script);
     }
 
@@ -310,35 +334,46 @@
     }
 
     window.__handleLogs = function(data) {
+      isFetchingLogs = false;
       let scriptEl = document.getElementById('dynamicLogScript');
       if (scriptEl) scriptEl.remove();
 
       let allLogs = Array.isArray(data) ? data : [];
-      
       let todayStr = new Date().toDateString();
+
       let todaysLogs = allLogs.filter(row => {
         if (!row || !row[0]) return false;
-        let logDate = new Date(row[0]).toDateString();
-        return logDate === todayStr;
+        return new Date(row[0]).toDateString() === todayStr;
       });
 
       cachedLogs = todaysLogs;
+
+      try {
+        localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify({
+          date: todayStr,
+          logs: cachedLogs
+        }));
+      } catch (e) {}
+
       updateSectionDropdown(cachedLogs);
       renderTable();
       document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
     };
 
     function fetchLogs() {
+      if (isFetchingLogs) return; // Prevent overlapping requests if a poll is still in flight
+      isFetchingLogs = true;
+
       let oldScript = document.getElementById('dynamicLogScript');
       if (oldScript) oldScript.remove();
 
       var script = document.createElement('script');
       script.id = 'dynamicLogScript';
-      script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=__handleLogs&_=' + new Date().getTime();
-      
-      script.onerror = function(err) {
-        console.error("JSONP script load error:", err);
-        document.getElementById('liveStatus').innerText = '🟡 Retrying Feed...';
+      script.src = APPS_SCRIPT_URL + '?action=getLogs&callback=__handleLogs&_=' + Date.now();
+
+      script.onerror = function() {
+        isFetchingLogs = false;
+        document.getElementById('liveStatus').innerText = '🟡 Reconnecting...';
       };
 
       document.body.appendChild(script);
@@ -353,13 +388,12 @@
       if (upperS === "7A" || upperS.includes("7A")) {
         return ["Pre-K", "Kinder", "1st Grade", "2nd Grade", "3rd Grade", "4th Grade", "5th Grade", "6th Grade", "FLS & TC"];
       }
-
       if (upperS.includes("FLS") || upperS.includes("TC")) return ["FLS & TC"];
       if (upperS.includes("PK") || upperS.includes("PRE") || upperS.includes("EC")) return ["Pre-K"];
       if (["KA", "KB", "KC", "KD"].includes(upperS) || upperS.startsWith("K") || upperS.includes("KINDERGARTEN")) return ["Kinder"];
       if (upperS.startsWith("1") || upperS.includes("1ST")) return ["1st Grade"];
       if (upperS.startsWith("2") || upperS.includes("2ND")) return ["2nd Grade"];
-      
+
       if (upperS.startsWith("3") || upperS.includes("3RD")) {
         grades.push("3rd Grade");
         if (upperS === "3A" || upperS === "3B" || upperS.includes("3A") || upperS.includes("3B")) grades.push("4th Grade");
@@ -381,12 +415,10 @@
       if (!isFiltered || !sectionName) return '';
       let hash = 0;
       let cleanStr = String(sectionName).trim().toUpperCase();
-      
       for (let i = 0; i < cleanStr.length; i++) {
         hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
       }
-      
-      let h = Math.abs(hash * 37) % 360; 
+      let h = Math.abs(hash * 37) % 360;
       return `background-color: hsl(${h}, 70%, 93%);`;
     }
 
@@ -409,23 +441,21 @@
       const selectedGrade = document.getElementById('gradeFilter').value;
       const select = document.getElementById('sectionFilter');
       const currentSelection = select.value;
-      
+
       let filteredData = data;
       if (selectedGrade !== 'ALL') {
         filteredData = data.filter(row => {
           if (!row || !row[7]) return false;
-          let grades = getSectionGrades(row[7]);
-          return grades.includes(selectedGrade);
+          return getSectionGrades(row[7]).includes(selectedGrade);
         });
       }
-      
+
       const sections = [...new Set(filteredData.map(row => row ? row[7] : "").filter(Boolean))].sort();
-      
       let html = '<option value="ALL">All Sections</option>';
       sections.forEach(sec => {
         html += `<option value="${sec}">${sec}</option>`;
       });
-      
+
       select.innerHTML = html;
       select.value = sections.includes(currentSelection) ? currentSelection : 'ALL';
     }
@@ -434,11 +464,11 @@
       const tbody = document.getElementById('logTableBody');
       const selectedGrade = document.getElementById('gradeFilter').value;
       const selectedSection = document.getElementById('sectionFilter').value;
-      
+
       tbody.innerHTML = '';
 
       if (!cachedLogs || cachedLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans found in the sheet yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">Waiting for first dismissal scan...</td></tr>';
         document.getElementById('recordCount').innerText = '0 records';
         return;
       }
@@ -447,18 +477,14 @@
       cachedLogs.forEach(row => {
         if (row && row.length > 1) {
           let id = String(row[1] || '').trim();
-          if (id) {
-            checkInCounts[id] = (checkInCounts[id] || 0) + 1;
-          }
+          if (id) checkInCounts[id] = (checkInCounts[id] || 0) + 1;
         }
       });
 
       let sortedLogs = [...cachedLogs].sort((a, b) => {
         let timeA = (a && a[0]) ? new Date(a[0]).getTime() : 0;
         let timeB = (b && b[0]) ? new Date(b[0]).getTime() : 0;
-        if (isNaN(timeA)) timeA = 0;
-        if (isNaN(timeB)) timeB = 0;
-        return timeB - timeA;
+        return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
       });
 
       let uniqueMap = new Map();
@@ -474,14 +500,12 @@
       let filtered = deduplicatedLogs.filter(row => {
         let sectionVal = row[7] || "";
         let studentGrades = getSectionGrades(sectionVal);
-
         let matchesGrade = (selectedGrade === 'ALL' || studentGrades.includes(selectedGrade));
         let matchesSection = (selectedSection === 'ALL' || sectionVal === selectedSection);
         return matchesGrade && matchesSection;
       });
 
       document.getElementById('recordCount').innerText = `${filtered.length} record(s) shown`;
-      document.getElementById('liveStatus').innerText = '🟢 Live Feed Active';
 
       if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="no-data">No scans match this filter combination.</td></tr>';
@@ -497,17 +521,16 @@
         let methodVal = row[3] || 'Scanned';
         let sectVal = row[7] || '';
         let teachVal = row[8] || '';
-        
+
         let repeatCount = checkInCounts[idVal] || 1;
         let baseFontSize = 14;
         let dynamicFontSize = repeatCount > 1 ? Math.min(baseFontSize + ((repeatCount - 1) * 3), 24) : baseFontSize;
-        
-        let repeatBadge = repeatCount > 1 
-          ? `<span style="background: #ea580c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 900; display: inline-block; border: 1px solid #c2410c;">${repeatCount}x Today</span>` 
+
+        let repeatBadge = repeatCount > 1
+          ? `<span style="background: #ea580c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 900; display: inline-block; border: 1px solid #c2410c;">${repeatCount}x Today</span>`
           : '';
 
         let photoUrl = (studentRoster[idVal] && studentRoster[idVal].photo) ? studentRoster[idVal].photo : '';
-
         let visualHtml = '';
         if (photoUrl && String(photoUrl).startsWith('http')) {
           visualHtml = `<img src="${photoUrl}" class="student-photo" alt="${nameVal}">`;
@@ -515,15 +538,13 @@
           let initial = nameVal.charAt(0) !== 'U' ? nameVal.charAt(0) : '?';
           visualHtml = `<div class="student-initials">${initial}</div>`;
         }
-        
-        let studentHtml = `<div class="student-cell">${visualHtml}<span style="font-size: ${dynamicFontSize}px; font-weight: ${repeatCount > 1 ? '900' : '800'}; color: var(--coatl-navy);">${nameVal}</span>${repeatBadge}</div>`;
 
+        let studentHtml = `<div class="student-cell">${visualHtml}<span style="font-size: ${dynamicFontSize}px; font-weight: ${repeatCount > 1 ? '900' : '800'}; color: var(--coatl-navy);">${nameVal}</span>${repeatBadge}</div>`;
         let locClass = getAmenityLocationClass(locVal);
         let locationHtml = `<span class="location-badge ${locClass}">${locVal}</span>`;
-
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
         let tr = document.createElement('tr');
-        
+
         if (repeatCount === 2) {
           tr.className = 'highlight-2x';
         } else if (repeatCount === 3) {
@@ -533,7 +554,7 @@
         } else if (rowStyle && isFilteredView) {
           tr.setAttribute('style', rowStyle);
         }
-        
+
         tr.innerHTML = '<td>' + studentHtml + '</td>' +
                        '<td>' + idVal + '</td>' +
                        '<td>' + locationHtml + '</td>' +
@@ -544,11 +565,20 @@
       });
     }
 
+    // Run hydration immediately—don't even wait for window.onload
+    hydrateFromLocalCache();
+
     window.onload = function() {
-      fetchRoster(false);
+      // 1. Fetch live logs FIRST so the table updates immediately
       fetchLogs();
-      // Staggered 8-second poll with slight random jitter so classrooms don't hit Apps Script at the exact same millisecond
-      let jitter = Math.floor(Math.random() * 1500);
+
+      // 2. Stagger the heavy roster fetch by 1.5s if not already cached
+      setTimeout(function() {
+        fetchRoster(false);
+      }, 1500);
+
+      // 3. Poll every 4s + random jitter, skipping if previous request is still running
+      let jitter = Math.floor(Math.random() * 1000);
       setInterval(fetchLogs, 4000 + jitter);
     };
   </script>
