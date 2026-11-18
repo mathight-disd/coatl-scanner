@@ -329,6 +329,373 @@
       }
     }
   </style>
+  <script>
+    // Define all global functions immediately in the head so they are 100% ready before any button click
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+    let rosterList = [];
+    let rosterMap = {};
+    let sectionToTeacherMap = {};
+    let studentsToPrint = [];
+
+    function switchMode(mode) {
+      const isRoster = (mode === 'roster');
+      const rosterDiv = document.getElementById('modeRoster');
+      const tagsDiv = document.getElementById('modeTags');
+      const btnRoster = document.getElementById('tabBtnRoster');
+      const btnTags = document.getElementById('tabBtnTags');
+
+      if (rosterDiv) rosterDiv.style.display = isRoster ? 'grid' : 'none';
+      if (tagsDiv) tagsDiv.style.display = isRoster ? 'none' : 'block';
+      if (btnRoster) btnRoster.classList.toggle('active', isRoster);
+      if (btnTags) btnTags.classList.toggle('active', !isRoster);
+    }
+
+    function fetchFreshRoster() {
+      const badge = document.getElementById('rosterBadge');
+      if (badge) badge.innerText = '⏳ Syncing Roster...';
+      var cbName = 'reg_roster_cb_' + Date.now();
+
+      window[cbName] = function(data) {
+        var el = document.getElementById(cbName);
+        if (el) el.remove();
+        delete window[cbName];
+
+        if (Array.isArray(data)) {
+          rosterList = data;
+          rosterMap = {};
+          sectionToTeacherMap = {};
+
+          data.forEach(s => {
+            let id = String(s.id || '').trim();
+            if (id) rosterMap[id.toLowerCase()] = s;
+            if (s.section && s.teacher) {
+              sectionToTeacherMap[String(s.section).trim()] = String(s.teacher).trim();
+            }
+          });
+
+          populateSectionDropdowns();
+          populateStudentDatalist();
+          renderDirectory();
+          if (badge) badge.innerText = '🟢 ' + rosterList.length + ' Active Students';
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName + '&_=' + Date.now();
+      script.onerror = function() {
+        if (badge) badge.innerText = '🔴 Connection Error';
+      };
+      document.body.appendChild(script);
+    }
+
+    function populateSectionDropdowns() {
+      const formSelect = document.getElementById('sectionSelect');
+      const tagSelect = document.getElementById('tagSectionFilter');
+      if (!formSelect || !tagSelect) return;
+
+      const currentFormVal = formSelect.value;
+      const sections = Object.keys(sectionToTeacherMap).sort();
+
+      let formHtml = '<option value="">-- Select Homeroom / Section --</option>';
+      let tagHtml = '<option value="">-- Choose a Section / Homeroom --</option>';
+
+      sections.forEach(sec => {
+        let label = `${sec} (${sectionToTeacherMap[sec]})`;
+        formHtml += `<option value="${sec}">${label}</option>`;
+        tagHtml += `<option value="${sec}">${label}</option>`;
+      });
+
+      formHtml += '<option value="CUSTOM">+ Type Custom Section...</option>';
+      formSelect.innerHTML = formHtml;
+      tagSelect.innerHTML = tagHtml;
+
+      if (currentFormVal && (sections.includes(currentFormVal) || currentFormVal === 'CUSTOM')) {
+        formSelect.value = currentFormVal;
+      }
+    }
+
+    function populateStudentDatalist() {
+      const datalist = document.getElementById('studentDatalist');
+      if (!datalist) return;
+      let html = '';
+      rosterList.forEach(s => {
+        html += `<option value="${s.name} (${s.id})">`;
+      });
+      datalist.innerHTML = html;
+    }
+
+    function onSectionSelectChange() {
+      const val = document.getElementById('sectionSelect').value;
+      const customInput = document.getElementById('customSectionInput');
+      const teacherInput = document.getElementById('teacherName');
+
+      if (val === 'CUSTOM') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+        teacherInput.value = '';
+      } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+        if (sectionToTeacherMap[val]) {
+          teacherInput.value = sectionToTeacherMap[val];
+        }
+      }
+    }
+
+    function checkExistingId(rawId) {
+      let clean = String(rawId || '').trim().toLowerCase();
+      let existing = rosterMap[clean];
+      const helper = document.getElementById('idHelper');
+      const editTag = document.getElementById('editModeTag');
+      const formTitle = document.getElementById('formTitle');
+      if (!helper || !editTag || !formTitle) return;
+
+      if (existing) {
+        helper.innerHTML = `<span style="color:#b45309; font-weight:700;">⚠️ ID matches ${existing.name} (${existing.section}). Saving will update this student.</span>`;
+        editTag.style.display = 'inline-block';
+        formTitle.innerText = '✏️ Update Student';
+      } else {
+        helper.innerText = 'Enter district student ID. If ID already exists, submitting will update their record.';
+        editTag.style.display = 'none';
+        formTitle.innerText = '➕ Add New Student';
+      }
+    }
+
+    function loadStudentForEdit(id) {
+      let s = rosterMap[String(id).trim().toLowerCase()];
+      if (!s) return;
+
+      document.getElementById('studentId').value = s.id;
+      document.getElementById('studentName').value = s.name;
+      document.getElementById('teacherName').value = s.teacher || '';
+      document.getElementById('familyToken').value = s.familyToken || '';
+      document.getElementById('photoUrl').value = (s.photo && !s.photo.includes('146otTzK-r13z4ZAnzvExVB0nHt7Kg-ko')) ? s.photo : '';
+
+      const select = document.getElementById('sectionSelect');
+      const customInput = document.getElementById('customSectionInput');
+      if (sectionToTeacherMap[s.section]) {
+        select.value = s.section;
+        customInput.style.display = 'none';
+        customInput.required = false;
+      } else {
+        select.value = 'CUSTOM';
+        customInput.style.display = 'block';
+        customInput.required = true;
+        customInput.value = s.section || '';
+      }
+
+      checkExistingId(s.id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function quickPrintSingleStudent(id) {
+      let s = rosterMap[String(id).trim().toLowerCase()];
+      if (!s) return;
+      studentsToPrint = [s];
+      document.getElementById('tagSectionFilter').value = '';
+      switchMode('tags');
+      renderCarTags();
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const studentId = document.getElementById('studentId').value.trim();
+      const studentName = document.getElementById('studentName').value.trim();
+      const selectVal = document.getElementById('sectionSelect').value;
+      const section = (selectVal === 'CUSTOM')
+        ? document.getElementById('customSectionInput').value.trim()
+        : selectVal;
+      const teacher = document.getElementById('teacherName').value.trim();
+      const familyToken = document.getElementById('familyToken').value.trim();
+      const photoUrl = document.getElementById('photoUrl').value.trim();
+
+      if (!studentId || !studentName || !section || !teacher) {
+        showAlert('Please fill out all required fields.', 'alert-error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving...';
+
+      document.getElementById('postStudentId').value = studentId;
+      document.getElementById('postStudentName').value = studentName;
+      document.getElementById('postSection').value = section;
+      document.getElementById('postTeacher').value = teacher;
+      document.getElementById('postFamilyToken').value = familyToken;
+      document.getElementById('postPhotoUrl').value = photoUrl;
+
+      document.getElementById('hiddenPostForm').submit();
+
+      let savedStudentObj = {
+        id: studentId,
+        name: studentName,
+        section: section,
+        teacher: teacher,
+        familyToken: familyToken
+      };
+
+      setTimeout(function() {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Save Student to Roster';
+        studentsToPrint = [savedStudentObj];
+        renderCarTags();
+        showAlert(`✅ Saved ${studentName} (ID: ${studentId}) to ${section}! Switch to "Print Car Tags" if you need a tag right now.`, 'alert-success');
+        resetForm();
+        fetchFreshRoster();
+      }, 1800);
+    }
+
+    function resetForm() {
+      document.getElementById('registrarForm').reset();
+      document.getElementById('customSectionInput').style.display = 'none';
+      document.getElementById('customSectionInput').required = false;
+      checkExistingId('');
+    }
+
+    function showAlert(msg, cls) {
+      const box = document.getElementById('statusAlert');
+      if (!box) return;
+      box.className = 'alert ' + cls;
+      box.innerText = msg;
+      box.style.display = 'block';
+      setTimeout(() => { box.style.display = 'none'; }, 7000);
+    }
+
+    function renderDirectory() {
+      const tbody = document.getElementById('directoryBody');
+      const searchInput = document.getElementById('directorySearch');
+      if (!tbody || !searchInput) return;
+
+      const query = searchInput.value.toLowerCase().trim();
+
+      let filtered = rosterList;
+      if (query) {
+        filtered = rosterList.filter(s =>
+          String(s.id || '').toLowerCase().includes(query) ||
+          String(s.name || '').toLowerCase().includes(query) ||
+          String(s.section || '').toLowerCase().includes(query) ||
+          String(s.teacher || '').toLowerCase().includes(query)
+        );
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:25px; color:#64748b;">No matching students found.</td></tr>';
+        return;
+      }
+
+      let slice = filtered.slice(0, 150);
+      let html = '';
+      slice.forEach(s => {
+        let safeId = String(s.id).replace(/'/g, "\\'");
+        html += `<tr>
+          <td>${s.id}</td>
+          <td>${s.name}</td>
+          <td>${s.section || '-'}</td>
+          <td>${s.teacher || '-'}</td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="mini-btn" onclick="loadStudentForEdit('${safeId}')">Edit</button>
+            <button type="button" class="mini-btn mini-btn-tag" onclick="quickPrintSingleStudent('${safeId}')">🏷️ Tag</button>
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function onTagSectionChange() {
+      const sec = document.getElementById('tagSectionFilter').value;
+      document.getElementById('tagStudentSearch').value = '';
+      if (!sec) {
+        studentsToPrint = [];
+      } else {
+        studentsToPrint = rosterList
+          .filter(s => String(s.section || '').trim() === sec)
+          .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      }
+      renderCarTags();
+    }
+
+    function onTagStudentPicked(val) {
+      if (!val) return;
+      document.getElementById('tagSectionFilter').value = '';
+
+      let idMatch = val.match(/\(([^)]+)\)$/);
+      let found = null;
+
+      if (idMatch && rosterMap[idMatch[1].trim().toLowerCase()]) {
+        found = rosterMap[idMatch[1].trim().toLowerCase()];
+      } else {
+        let q = val.trim().toLowerCase();
+        found = rosterMap[q] || rosterList.find(s => String(s.name).toLowerCase() === q);
+      }
+
+      if (found) {
+        if (!studentsToPrint.some(item => String(item.id) === String(found.id))) {
+          studentsToPrint.push(found);
+        }
+        document.getElementById('tagStudentSearch').value = '';
+        renderCarTags();
+      }
+    }
+
+    function clearTagQueue() {
+      studentsToPrint = [];
+      document.getElementById('tagSectionFilter').value = '';
+      document.getElementById('tagStudentSearch').value = '';
+      renderCarTags();
+    }
+
+    function renderCarTags() {
+      const grid = document.getElementById('tagPreviewGrid');
+      const emptyMsg = document.getElementById('tagEmptyMsg');
+      const countLabel = document.getElementById('tagCountLabel');
+      if (!grid || !emptyMsg || !countLabel) return;
+
+      grid.innerHTML = '';
+      countLabel.innerText = `${studentsToPrint.length} tag(s) ready`;
+
+      if (studentsToPrint.length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+
+      studentsToPrint.forEach((student, idx) => {
+        const card = document.createElement('div');
+        card.className = 'car-tag-card';
+
+        const qrDivId = 'qr_tag_' + idx;
+        card.innerHTML = `
+          <div class="tag-info">
+            <div class="tag-school">EDWIN J. KIEST COATLS</div>
+            <div class="tag-student-name">${student.name}</div>
+            <div class="tag-meta">Section: ${student.section || 'N/A'}</div>
+            <div class="tag-teacher">${student.teacher || ''}</div>
+            <div class="tag-id-label">ID: ${student.id}${student.familyToken ? ' • Family: ' + student.familyToken : ''}</div>
+          </div>
+          <div class="tag-qr-box" id="${qrDivId}"></div>
+        `;
+        grid.appendChild(card);
+
+        if (typeof QRCode !== 'undefined') {
+          new QRCode(document.getElementById(qrDivId), {
+            text: String(student.id),
+            width: 115,
+            height: 115,
+            colorDark: "#13264E",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+      });
+    }
+
+    window.onload = function() {
+      fetchFreshRoster();
+    };
+  </script>
 </head>
 <body>
   <div class="container">
@@ -480,107 +847,5 @@
     <input type="hidden" name="familyToken" id="postFamilyToken">
     <input type="hidden" name="photoUrl" id="postPhotoUrl">
   </form>
-
-  <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
-    let rosterList = [];
-    let rosterMap = {};
-    let sectionToTeacherMap = {};
-    let studentsToPrint = [];
-
-    window.onload = function() {
-      fetchFreshRoster();
-    };
-
-    function switchMode(mode) {
-      const isRoster = (mode === 'roster');
-      document.getElementById('modeRoster').style.display = isRoster ? 'grid' : 'none';
-      document.getElementById('modeTags').style.display = isRoster ? 'none' : 'block';
-      document.getElementById('tabBtnRoster').classList.toggle('active', isRoster);
-      document.getElementById('tabBtnTags').classList.toggle('active', !isRoster);
-    }
-
-    function fetchFreshRoster() {
-      document.getElementById('rosterBadge').innerText = '⏳ Syncing Roster...';
-      var cbName = 'reg_roster_cb_' + Date.now();
-
-      window[cbName] = function(data) {
-        var el = document.getElementById(cbName);
-        if (el) el.remove();
-        delete window[cbName];
-
-        if (Array.isArray(data)) {
-          rosterList = data;
-          rosterMap = {};
-          sectionToTeacherMap = {};
-
-          data.forEach(s => {
-            let id = String(s.id || '').trim();
-            if (id) rosterMap[id.toLowerCase()] = s;
-            if (s.section && s.teacher) {
-              sectionToTeacherMap[String(s.section).trim()] = String(s.teacher).trim();
-            }
-          });
-
-          populateSectionDropdowns();
-          populateStudentDatalist();
-          renderDirectory();
-          document.getElementById('rosterBadge').innerText = '🟢 ' + rosterList.length + ' Active Students';
-        }
-      };
-
-      var script = document.createElement('script');
-      script.id = cbName;
-      script.src = APPS_SCRIPT_URL + '?callback=' + cbName + '&_=' + Date.now();
-      script.onerror = function() {
-        document.getElementById('rosterBadge').innerText = '🔴 Connection Error';
-      };
-      document.body.appendChild(script);
-    }
-
-    function populateSectionDropdowns() {
-      const formSelect = document.getElementById('sectionSelect');
-      const tagSelect = document.getElementById('tagSectionFilter');
-      const currentFormVal = formSelect.value;
-      const sections = Object.keys(sectionToTeacherMap).sort();
-
-      let formHtml = '<option value="">-- Select Homeroom / Section --</option>';
-      let tagHtml = '<option value="">-- Choose a Section / Homeroom --</option>';
-
-      sections.forEach(sec => {
-        let label = `${sec} (${sectionToTeacherMap[sec]})`;
-        formHtml += `<option value="${sec}">${label}</option>`;
-        tagHtml += `<option value="${sec}">${label}</option>`;
-      });
-
-      formHtml += '<option value="CUSTOM">+ Type Custom Section...</option>';
-      formSelect.innerHTML = formHtml;
-      tagSelect.innerHTML = tagHtml;
-
-      if (currentFormVal && (sections.includes(currentFormVal) || currentFormVal === 'CUSTOM')) {
-        formSelect.value = currentFormVal;
-      }
-    }
-
-    function populateStudentDatalist() {
-      const datalist = document.getElementById('studentDatalist');
-      let html = '';
-      rosterList.forEach(s => {
-        html += `<option value="${s.name} (${s.id})">`;
-      });
-      datalist.innerHTML = html;
-    }
-
-    function onSectionSelectChange() {
-      const val = document.getElementById('sectionSelect').value;
-      const customInput = document.getElementById('customSectionInput');
-      const teacherInput = document.getElementById('teacherName');
-
-      if (val === 'CUSTOM') {
-        customInput.style.display = 'block';
-        customInput.required = true;
-        teacherInput.value = '';
-      } else {
-        customInput.style.display = 'none';
-        customInput.required = false;
-        if (sectionToTeacherMap
+</body>
+</html>
