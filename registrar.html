@@ -230,7 +230,7 @@
     .mini-btn-tag:hover { background: #fecaca; }
 
     /* =====================================================================
-       EXACT REPLICA CAR TAG STYLES (Matching Reference Image)
+       2 PER PAGE PORTRAIT CAR TAG LAYOUT
        ===================================================================== */
     .tag-controls {
       display: grid;
@@ -246,17 +246,18 @@
     }
 
     .tag-preview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
-      gap: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      align-items: center;
     }
 
     .car-tag-box {
       background: #ffffff;
       border: 3px solid #000000;
       width: 100%;
-      max-width: 520px;
-      margin: auto;
+      max-width: 680px;
+      margin: 0 auto;
       page-break-inside: avoid;
       break-inside: avoid;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -265,30 +266,30 @@
     /* Top Header Row */
     .tag-header-row {
       display: grid;
-      grid-template-columns: 75px 1fr 75px;
+      grid-template-columns: 85px 1fr 85px;
       border-bottom: 3px solid #000000;
       align-items: center;
       text-align: center;
       background: #ffffff;
     }
     .tag-logo-cell {
-      padding: 6px;
+      padding: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .tag-logo-cell img {
-      width: 55px;
-      height: 55px;
+      width: 65px;
+      height: 65px;
       object-fit: contain;
     }
     .tag-title-cell {
-      font-size: 20px;
+      font-size: 24px;
       font-weight: 900;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #000000;
-      padding: 10px 5px;
+      padding: 12px 5px;
       font-family: 'Times New Roman', Times, serif;
     }
     .tag-logo-right {
@@ -301,25 +302,25 @@
     /* Middle Section & Teacher Row */
     .tag-meta-row {
       display: grid;
-      grid-template-columns: 1fr 30px 1.4fr;
+      grid-template-columns: 1fr 40px 1.5fr;
       border-bottom: 3px solid #000000;
       text-align: center;
       align-items: center;
-      font-size: 26px;
+      font-size: 30px;
       font-weight: 900;
       color: #000000;
     }
     .tag-section-box {
-      padding: 8px;
+      padding: 10px;
     }
     .tag-divider-box {
       border-left: 3px solid #000000;
       border-right: 3px solid #000000;
-      padding: 8px 0;
+      padding: 10px 0;
       color: #000000;
     }
     .tag-teacher-box {
-      padding: 8px;
+      padding: 10px;
       text-transform: uppercase;
       white-space: nowrap;
       overflow: hidden;
@@ -329,11 +330,11 @@
     /* Bottom Content Area (QR Code + Student Name) */
     .tag-body-row {
       display: grid;
-      grid-template-columns: 180px 1fr;
+      grid-template-columns: 210px 1fr;
       align-items: center;
     }
     .tag-qr-cell {
-      padding: 12px;
+      padding: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -341,35 +342,43 @@
     }
     .tag-name-cell {
       border-left: 3px solid #000000;
-      padding: 20px 15px;
+      padding: 24px 15px;
       text-align: center;
-      font-size: 32px;
+      font-size: 38px;
       font-weight: 900;
       text-transform: uppercase;
       color: #000000;
       word-break: break-word;
-      min-height: 140px;
+      min-height: 160px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Times New Roman', Times, serif;
     }
 
-    /* Clean Print Styles */
+    /* Clean Print Styles for 2/Page Portrait */
     @media print {
       body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
       .no-print { display: none !important; }
       .container { max-width: 100% !important; width: 100% !important; }
       .card { box-shadow: none !important; border: none !important; padding: 0 !important; }
       .tag-preview-grid {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 14px !important;
+        display: block !important;
       }
       .car-tag-box {
-        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 48vh !important;
+        margin-bottom: 2vh !important;
+        page-break-after: always;
+        break-after: page;
         border: 3px solid #000000 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+      }
+      .car-tag-box:last-child {
+        page-break-after: avoid;
+        break-after: avoid;
       }
     }
   </style>
@@ -734,8 +743,8 @@
         if (typeof QRCode !== 'undefined') {
           new QRCode(document.getElementById(qrDivId), {
             text: String(student.id),
-            width: 130,
-            height: 130,
+            width: 150,
+            height: 150,
             colorDark: "#000000",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
@@ -881,7 +890,7 @@
       </div>
 
       <div id="tagEmptyMsg" class="no-print" style="text-align:center; padding:35px; color:#64748b; font-style:italic;">
-        Select a Homeroom/Section or search for an individual student above to generate printable QR car tags matching your template.
+        Select a Homeroom/Section or search for an individual student above to generate printable QR car tags (2 per page portrait).
       </div>
 
       <div id="tagPreviewGrid" class="tag-preview-grid"></div>
