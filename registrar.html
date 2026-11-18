@@ -301,4 +301,603 @@
     /* Middle Section & Teacher Row */
     .tag-meta-row {
       display: grid;
-      grid-template
+      grid-template-columns: 1fr 30px 1.4fr;
+      border-bottom: 3px solid #000000;
+      text-align: center;
+      align-items: center;
+      font-size: 26px;
+      font-weight: 900;
+      color: #000000;
+    }
+    .tag-section-box {
+      padding: 8px;
+    }
+    .tag-divider-box {
+      border-left: 3px solid #000000;
+      border-right: 3px solid #000000;
+      padding: 8px 0;
+      color: #000000;
+    }
+    .tag-teacher-box {
+      padding: 8px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Bottom Content Area (QR Code + Student Name) */
+    .tag-body-row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      align-items: center;
+    }
+    .tag-qr-cell {
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+    }
+    .tag-name-cell {
+      border-left: 3px solid #000000;
+      padding: 20px 15px;
+      text-align: center;
+      font-size: 32px;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #000000;
+      word-break: break-word;
+      min-height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    /* Clean Print Styles */
+    @media print {
+      body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
+      .no-print { display: none !important; }
+      .container { max-width: 100% !important; width: 100% !important; }
+      .card { box-shadow: none !important; border: none !important; padding: 0 !important; }
+      .tag-preview-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 14px !important;
+      }
+      .car-tag-box {
+        box-shadow: none !important;
+        border: 3px solid #000000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+    let rosterList = [];
+    let rosterMap = {};
+    let sectionToTeacherMap = {};
+    let studentsToPrint = [];
+
+    // GitHub hosted logo reference
+    const COATL_LOGO_URL = "logo.png";
+
+    function switchMode(mode) {
+      const isRoster = (mode === 'roster');
+      const rosterDiv = document.getElementById('modeRoster');
+      const tagsDiv = document.getElementById('modeTags');
+      const btnRoster = document.getElementById('tabBtnRoster');
+      const btnTags = document.getElementById('tabBtnTags');
+
+      if (rosterDiv) rosterDiv.style.display = isRoster ? 'grid' : 'none';
+      if (tagsDiv) tagsDiv.style.display = isRoster ? 'none' : 'block';
+      if (btnRoster) btnRoster.classList.toggle('active', isRoster);
+      if (btnTags) btnTags.classList.toggle('active', !isRoster);
+    }
+
+    function fetchFreshRoster() {
+      const badge = document.getElementById('rosterBadge');
+      if (badge) badge.innerText = '⏳ Syncing Roster...';
+      var cbName = 'reg_roster_cb_' + Date.now();
+
+      window[cbName] = function(data) {
+        var el = document.getElementById(cbName);
+        if (el) el.remove();
+        delete window[cbName];
+
+        if (Array.isArray(data)) {
+          rosterList = data;
+          rosterMap = {};
+          sectionToTeacherMap = {};
+
+          data.forEach(s => {
+            let id = String(s.id || '').trim();
+            if (id) rosterMap[id.toLowerCase()] = s;
+            if (s.section && s.teacher) {
+              sectionToTeacherMap[String(s.section).trim()] = String(s.teacher).trim();
+            }
+          });
+
+          populateSectionDropdowns();
+          populateStudentDatalist();
+          renderDirectory();
+          if (badge) badge.innerText = '🟢 ' + rosterList.length + ' Active Students';
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = APPS_SCRIPT_URL + '?callback=' + cbName + '&_=' + Date.now();
+      script.onerror = function() {
+        if (badge) badge.innerText = '🔴 Connection Error';
+      };
+      document.body.appendChild(script);
+    }
+
+    function populateSectionDropdowns() {
+      const formSelect = document.getElementById('sectionSelect');
+      const tagSelect = document.getElementById('tagSectionFilter');
+      if (!formSelect || !tagSelect) return;
+
+      const currentFormVal = formSelect.value;
+      const sections = Object.keys(sectionToTeacherMap).sort();
+
+      let formHtml = '<option value="">-- Select Homeroom / Section --</option>';
+      let tagHtml = '<option value="">-- Choose a Section / Homeroom --</option>';
+
+      sections.forEach(sec => {
+        let label = `${sec} (${sectionToTeacherMap[sec]})`;
+        formHtml += `<option value="${sec}">${label}</option>`;
+        tagHtml += `<option value="${sec}">${label}</option>`;
+      });
+
+      formHtml += '<option value="CUSTOM">+ Type Custom Section...</option>';
+      formSelect.innerHTML = formHtml;
+      tagSelect.innerHTML = tagHtml;
+
+      if (currentFormVal && (sections.includes(currentFormVal) || currentFormVal === 'CUSTOM')) {
+        formSelect.value = currentFormVal;
+      }
+    }
+
+    function populateStudentDatalist() {
+      const datalist = document.getElementById('studentDatalist');
+      if (!datalist) return;
+      let html = '';
+      rosterList.forEach(s => {
+        html += `<option value="${s.name} (${s.id})">`;
+      });
+      datalist.innerHTML = html;
+    }
+
+    function onSectionSelectChange() {
+      const val = document.getElementById('sectionSelect').value;
+      const customInput = document.getElementById('customSectionInput');
+      const teacherInput = document.getElementById('teacherName');
+
+      if (val === 'CUSTOM') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+        teacherInput.value = '';
+      } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+        if (sectionToTeacherMap[val]) {
+          teacherInput.value = sectionToTeacherMap[val];
+        }
+      }
+    }
+
+    function checkExistingId(rawId) {
+      let clean = String(rawId || '').trim().toLowerCase();
+      let existing = rosterMap[clean];
+      const helper = document.getElementById('idHelper');
+      const editTag = document.getElementById('editModeTag');
+      const formTitle = document.getElementById('formTitle');
+      if (!helper || !editTag || !formTitle) return;
+
+      if (existing) {
+        helper.innerHTML = `<span style="color:#b45309; font-weight:700;">⚠️ ID matches ${existing.name} (${existing.section}). Saving will update this student.</span>`;
+        editTag.style.display = 'inline-block';
+        formTitle.innerText = '✏️ Update Student';
+      } else {
+        helper.innerText = 'Enter district student ID. If ID already exists, submitting will update their record.';
+        editTag.style.display = 'none';
+        formTitle.innerText = '➕ Add New Student';
+      }
+    }
+
+    function loadStudentForEdit(id) {
+      let s = rosterMap[String(id).trim().toLowerCase()];
+      if (!s) return;
+
+      document.getElementById('studentId').value = s.id;
+      document.getElementById('studentName').value = s.name;
+      document.getElementById('teacherName').value = s.teacher || '';
+      document.getElementById('familyToken').value = s.familyToken || '';
+      document.getElementById('photoUrl').value = (s.photo && !s.photo.includes('146otTzK-r13z4ZAnzvExVB0nHt7Kg-ko')) ? s.photo : '';
+
+      const select = document.getElementById('sectionSelect');
+      const customInput = document.getElementById('customSectionInput');
+      if (sectionToTeacherMap[s.section]) {
+        select.value = s.section;
+        customInput.style.display = 'none';
+        customInput.required = false;
+      } else {
+        select.value = 'CUSTOM';
+        customInput.style.display = 'block';
+        customInput.required = true;
+        customInput.value = s.section || '';
+      }
+
+      checkExistingId(s.id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function quickPrintSingleStudent(id) {
+      let s = rosterMap[String(id).trim().toLowerCase()];
+      if (!s) return;
+      studentsToPrint = [s];
+      document.getElementById('tagSectionFilter').value = '';
+      switchMode('tags');
+      renderCarTags();
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const studentId = document.getElementById('studentId').value.trim();
+      const studentName = document.getElementById('studentName').value.trim();
+      const selectVal = document.getElementById('sectionSelect').value;
+      const section = (selectVal === 'CUSTOM')
+        ? document.getElementById('customSectionInput').value.trim()
+        : selectVal;
+      const teacher = document.getElementById('teacherName').value.trim();
+      const familyToken = document.getElementById('familyToken').value.trim();
+      const photoUrl = document.getElementById('photoUrl').value.trim();
+
+      if (!studentId || !studentName || !section || !teacher) {
+        showAlert('Please fill out all required fields.', 'alert-error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving...';
+
+      document.getElementById('postStudentId').value = studentId;
+      document.getElementById('postStudentName').value = studentName;
+      document.getElementById('postSection').value = section;
+      document.getElementById('postTeacher').value = teacher;
+      document.getElementById('postFamilyToken').value = familyToken;
+      document.getElementById('postPhotoUrl').value = photoUrl;
+
+      document.getElementById('hiddenPostForm').submit();
+
+      let savedStudentObj = {
+        id: studentId,
+        name: studentName,
+        section: section,
+        teacher: teacher,
+        familyToken: familyToken
+      };
+
+      setTimeout(function() {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Save Student to Roster';
+        studentsToPrint = [savedStudentObj];
+        renderCarTags();
+        showAlert(`✅ Saved ${studentName} (ID: ${studentId}) to ${section}! Switch to "Print Car Tags" if you need a tag right now.`, 'alert-success');
+        resetForm();
+        fetchFreshRoster();
+      }, 1800);
+    }
+
+    function resetForm() {
+      document.getElementById('registrarForm').reset();
+      document.getElementById('customSectionInput').style.display = 'none';
+      document.getElementById('customSectionInput').required = false;
+      checkExistingId('');
+    }
+
+    function showAlert(msg, cls) {
+      const box = document.getElementById('statusAlert');
+      if (!box) return;
+      box.className = 'alert ' + cls;
+      box.innerText = msg;
+      box.style.display = 'block';
+      setTimeout(() => { box.style.display = 'none'; }, 7000);
+    }
+
+    function renderDirectory() {
+      const tbody = document.getElementById('directoryBody');
+      const searchInput = document.getElementById('directorySearch');
+      if (!tbody || !searchInput) return;
+
+      const query = searchInput.value.toLowerCase().trim();
+
+      let filtered = rosterList;
+      if (query) {
+        filtered = rosterList.filter(s =>
+          String(s.id || '').toLowerCase().includes(query) ||
+          String(s.name || '').toLowerCase().includes(query) ||
+          String(s.section || '').toLowerCase().includes(query) ||
+          String(s.teacher || '').toLowerCase().includes(query)
+        );
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:25px; color:#64748b;">No matching students found.</td></tr>';
+        return;
+      }
+
+      let slice = filtered.slice(0, 150);
+      let html = '';
+      slice.forEach(s => {
+        let safeId = String(s.id).replace(/'/g, "\\'");
+        html += `<tr>
+          <td>${s.id}</td>
+          <td>${s.name}</td>
+          <td>${s.section || '-'}</td>
+          <td>${s.teacher || '-'}</td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="mini-btn" onclick="loadStudentForEdit('${safeId}')">Edit</button>
+            <button type="button" class="mini-btn mini-btn-tag" onclick="quickPrintSingleStudent('${safeId}')">🏷️ Tag</button>
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function onTagSectionChange() {
+      const sec = document.getElementById('tagSectionFilter').value;
+      document.getElementById('tagStudentSearch').value = '';
+      if (!sec) {
+        studentsToPrint = [];
+      } else {
+        studentsToPrint = rosterList
+          .filter(s => String(s.section || '').trim() === sec)
+          .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      }
+      renderCarTags();
+    }
+
+    function onTagStudentPicked(val) {
+      if (!val) return;
+      document.getElementById('tagSectionFilter').value = '';
+
+      let idMatch = val.match(/\(([^)]+)\)$/);
+      let found = null;
+
+      if (idMatch && rosterMap[idMatch[1].trim().toLowerCase()]) {
+        found = rosterMap[idMatch[1].trim().toLowerCase()];
+      } else {
+        let q = val.trim().toLowerCase();
+        found = rosterMap[q] || rosterList.find(s => String(s.name).toLowerCase() === q);
+      }
+
+      if (found) {
+        if (!studentsToPrint.some(item => String(item.id) === String(found.id))) {
+          studentsToPrint.push(found);
+        }
+        document.getElementById('tagStudentSearch').value = '';
+        renderCarTags();
+      }
+    }
+
+    function clearTagQueue() {
+      studentsToPrint = [];
+      document.getElementById('tagSectionFilter').value = '';
+      document.getElementById('tagStudentSearch').value = '';
+      renderCarTags();
+    }
+
+    function renderCarTags() {
+      const grid = document.getElementById('tagPreviewGrid');
+      const emptyMsg = document.getElementById('tagEmptyMsg');
+      const countLabel = document.getElementById('tagCountLabel');
+      if (!grid || !emptyMsg || !countLabel) return;
+
+      grid.innerHTML = '';
+      countLabel.innerText = `${studentsToPrint.length} tag(s) ready`;
+
+      if (studentsToPrint.length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+
+      studentsToPrint.forEach((student, idx) => {
+        const box = document.createElement('div');
+        box.className = 'car-tag-box';
+
+        const qrDivId = 'qr_tag_' + idx;
+        box.innerHTML = `
+          <div class="tag-header-row">
+            <div class="tag-logo-cell tag-logo-left"><img src="${COATL_LOGO_URL}" alt="Coatls Logo"></div>
+            <div class="tag-title-cell">Edwin J Kiest Dismissal Tag</div>
+            <div class="tag-logo-cell tag-logo-right"><img src="${COATL_LOGO_URL}" alt="Coatls Logo"></div>
+          </div>
+          <div class="tag-meta-row">
+            <div class="tag-section-box">${student.section || '—'}</div>
+            <div class="tag-divider-box">-</div>
+            <div class="tag-teacher-box">${student.teacher || '—'}</div>
+          </div>
+          <div class="tag-body-row">
+            <div class="tag-qr-cell" id="${qrDivId}"></div>
+            <div class="tag-name-cell">${student.name}</div>
+          </div>
+        `;
+        grid.appendChild(box);
+
+        if (typeof QRCode !== 'undefined') {
+          new QRCode(document.getElementById(qrDivId), {
+            text: String(student.id),
+            width: 130,
+            height: 130,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+      });
+    }
+
+    window.onload = function() {
+      fetchFreshRoster();
+    };
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="header no-print">
+      <div>
+        <h2>Edwin J. Kiest Coatls</h2>
+        <div class="subtitle">REGISTRAR ROSTER & CAR TAG PORTAL</div>
+      </div>
+      <div class="status-pill" id="rosterBadge">⏳ Loading Roster...</div>
+    </div>
+
+    <!-- MODE SWITCHER TABS -->
+    <div class="nav-tabs no-print">
+      <button class="tab-btn active" id="tabBtnRoster" onclick="switchMode('roster')">1. Add / Update Student</button>
+      <button class="tab-btn" id="tabBtnTags" onclick="switchMode('tags')">2. Print Car Tags (Student or Section)</button>
+    </div>
+
+    <!-- ===================================================================
+         MODE 1: ADD / UPDATE STUDENT ROSTER
+         =================================================================== -->
+    <div id="modeRoster" class="grid-layout no-print">
+      <div class="card">
+        <h3>
+          <span id="formTitle">➕ Add New Student</span>
+          <span id="editModeTag" style="display:none; font-size:11px; background:#fef3c7; color:#92400e; padding:3px 8px; border-radius:6px;">Editing Existing</span>
+        </h3>
+
+        <div id="statusAlert" class="alert"></div>
+
+        <form id="registrarForm" onsubmit="handleFormSubmit(event)">
+          <div class="form-group">
+            <label for="studentId">Student ID Number <span class="req">*</span></label>
+            <input type="text" id="studentId" placeholder="e.g., 1234567" required oninput="checkExistingId(this.value)">
+            <div class="helper-text" id="idHelper">Enter district student ID. If ID already exists, submitting will update their record.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="studentName">Student Full Name <span class="req">*</span></label>
+            <input type="text" id="studentName" placeholder="e.g., Sofia Hernandez" required>
+          </div>
+
+          <div class="form-group">
+            <label for="sectionSelect">Homeroom / Section <span class="req">*</span></label>
+            <select id="sectionSelect" onchange="onSectionSelectChange()" required>
+              <option value="">-- Select Homeroom / Section --</option>
+              <option value="CUSTOM">+ Type Custom Section...</option>
+            </select>
+            <input type="text" id="customSectionInput" placeholder="Enter new section (e.g., 2C)" style="display:none; margin-top:8px;">
+          </div>
+
+          <div class="form-group">
+            <label for="teacherName">Homeroom Teacher <span class="req">*</span></label>
+            <input type="text" id="teacherName" placeholder="Auto-fills from section or type teacher name" required>
+          </div>
+
+          <div class="form-group">
+            <label for="familyToken">Family Carpool / Sibling Token (Optional)</label>
+            <input type="text" id="familyToken" placeholder="e.g., FAM-104 (leave blank if none)">
+            <div class="helper-text">Use the same token across siblings so one scan dismisses the whole family.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="photoUrl">Badge Photo URL (Optional)</label>
+            <input type="text" id="photoUrl" placeholder="https://lh3.googleusercontent.com/d/...">
+          </div>
+
+          <div class="btn-row">
+            <button type="submit" class="btn-primary" id="submitBtn">Save Student to Roster</button>
+            <button type="button" class="btn-secondary" onclick="resetForm()">Clear</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- LIVE ROSTER DIRECTORY -->
+      <div class="card">
+        <h3>
+          <span>📋 Active Student Directory</span>
+          <button type="button" class="mini-btn" onclick="fetchFreshRoster()">↻ Refresh List</button>
+        </h3>
+
+        <div class="search-bar">
+          <input type="text" id="directorySearch" placeholder="Search by student name, ID, homeroom, or teacher..." oninput="renderDirectory()">
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Student Name</th>
+                <th>Section</th>
+                <th>Teacher</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="directoryBody">
+              <tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">Loading student roster...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         MODE 2: PRINT CAR TAGS (BY INDIVIDUAL STUDENT OR BY SECTION)
+         =================================================================== -->
+    <div id="modeTags" class="card" style="display:none;">
+      <h3 class="no-print">
+        <span>🏷️ Print Dismissal Car Tags</span>
+        <span id="tagCountLabel" style="font-size:12px; color:#64748b; text-transform:none;">0 tags ready</span>
+      </h3>
+
+      <div class="tag-controls no-print">
+        <div>
+          <label for="tagSectionFilter">Option A: Print Entire Homeroom / Section</label>
+          <select id="tagSectionFilter" onchange="onTagSectionChange()">
+            <option value="">-- Choose a Section / Homeroom --</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="tagStudentSearch">Option B: Print Individual Student(s)</label>
+          <input type="text" id="tagStudentSearch" placeholder="Type student name or ID..." list="studentDatalist" onchange="onTagStudentPicked(this.value)">
+          <datalist id="studentDatalist"></datalist>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-secondary" onclick="clearTagQueue()">Clear</button>
+          <button type="button" class="btn-print" onclick="window.print()">🖨️ Print Tags</button>
+        </div>
+      </div>
+
+      <div id="tagEmptyMsg" class="no-print" style="text-align:center; padding:35px; color:#64748b; font-style:italic;">
+        Select a Homeroom/Section or search for an individual student above to generate printable QR car tags matching your template.
+      </div>
+
+      <div id="tagPreviewGrid" class="tag-preview-grid"></div>
+    </div>
+  </div>
+
+  <!-- Hidden iframe + form for CORS-free Apps Script POST -->
+  <iframe name="registrar_iframe" id="registrar_iframe" style="display:none;"></iframe>
+  <form id="hiddenPostForm" action="https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec" method="POST" target="registrar_iframe" style="display:none;">
+    <input type="hidden" name="action" value="addStudent">
+    <input type="hidden" name="studentId" id="postStudentId">
+    <input type="hidden" name="studentName" id="postStudentName">
+    <input type="hidden" name="section" id="postSection">
+    <input type="hidden" name="teacher" id="postTeacher">
+    <input type="hidden" name="familyToken" id="postFamilyToken">
+    <input type="hidden" name="photoUrl" id="postPhotoUrl">
+  </form>
+</body>
+</html>
