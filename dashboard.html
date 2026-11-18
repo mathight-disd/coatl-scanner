@@ -38,11 +38,31 @@
       align-items: center;
       gap: 15px;
     }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     h2 { margin: 0; color: var(--coatl-navy); text-transform: uppercase; font-size: 20px; letter-spacing: 0.5px; }
     .status-badge {
       background: #e0f7fa; color: #0b4f6c; padding: 6px 14px;
       border-radius: 20px; font-weight: 700; font-size: 13px;
       border: 1px solid #b2ebf2;
+    }
+    .refresh-roster-btn {
+      background: #f8fafc;
+      color: var(--coatl-navy);
+      border: 1px solid #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .refresh-roster-btn:hover {
+      background: #e2e8f0;
     }
     .controls-bar {
       background: var(--coatl-card-bg);
@@ -168,7 +188,10 @@
           <div style="font-size: 12px; color: var(--coatl-red); font-weight: 800; margin-top: 2px;">LIVE DISMISSAL MONITOR</div>
         </div>
       </div>
-      <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
+      <div class="header-right">
+        <button class="refresh-roster-btn" onclick="forceRefreshRoster()" title="Reload student names and photos from Google Sheets">↻ Sync Roster</button>
+        <div class="status-badge" id="liveStatus">🟢 Live Feed Active</div>
+      </div>
     </div>
 
     <!-- Filter Control Bar -->
@@ -220,24 +243,56 @@
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIop2lsxZmbaF_Wad8Lo0y1hzv092_nRDwXSII8pSbI2U1sJA5mp-uXggxNcEqcBmvsg/exec";
+    const ROSTER_CACHE_KEY = "coatl_roster_cache_v1";
+    const ROSTER_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // Auto-refresh roster once every 12 hours
 
     let cachedLogs = [];
-    let studentRoster = {}; 
+    let studentRoster = {};
 
     window.__handleRoster = function(data) {
       let scriptEl = document.getElementById('dynamicRosterScript');
       if (scriptEl) scriptEl.remove();
 
       if (Array.isArray(data)) {
+        studentRoster = {};
         data.forEach(student => {
           if (student.id) {
             studentRoster[String(student.id).trim()] = student;
           }
         });
+
+        try {
+          localStorage.setItem(ROSTER_CACHE_KEY, JSON.stringify({
+            timestamp: Date.now(),
+            roster: studentRoster
+          }));
+        } catch (err) {
+          console.warn("Could not save roster to localStorage:", err);
+        }
+
+        // Re-render immediately so photos populate even if logs finished loading first
+        if (cachedLogs.length > 0) {
+          renderTable();
+        }
       }
     };
 
-    function fetchRoster() {
+    function fetchRoster(forceNetwork) {
+      if (!forceNetwork) {
+        try {
+          let rawCache = localStorage.getItem(ROSTER_CACHE_KEY);
+          if (rawCache) {
+            let parsed = JSON.parse(rawCache);
+            if (parsed && parsed.roster && (Date.now() - parsed.timestamp < ROSTER_CACHE_TTL_MS)) {
+              studentRoster = parsed.roster;
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Cache read failed, fetching fresh roster...");
+        }
+      }
+
       let oldScript = document.getElementById('dynamicRosterScript');
       if (oldScript) oldScript.remove();
 
@@ -245,6 +300,13 @@
       script.id = 'dynamicRosterScript';
       script.src = APPS_SCRIPT_URL + '?callback=__handleRoster&_=' + new Date().getTime();
       document.body.appendChild(script);
+    }
+
+    function forceRefreshRoster() {
+      localStorage.removeItem(ROSTER_CACHE_KEY);
+      document.getElementById('liveStatus').innerText = '🔄 Syncing Roster...';
+      fetchRoster(true);
+      fetchLogs();
     }
 
     window.__handleLogs = function(data) {
@@ -276,8 +338,7 @@
       
       script.onerror = function(err) {
         console.error("JSONP script load error:", err);
-        document.getElementById('liveStatus').innerText = '🔴 Connection Error';
-        document.getElementById('logTableBody').innerHTML = '<tr><td colspan="6" class="no-data">Unable to connect to Apps Script backend.</td></tr>';
+        document.getElementById('liveStatus').innerText = '🟡 Retrying Feed...';
       };
 
       document.body.appendChild(script);
@@ -463,7 +524,6 @@
         let rowStyle = getRowPastelStyle(sectVal, isFilteredView);
         let tr = document.createElement('tr');
         
-        // Clean and reliable highlight assignment based on scan count
         if (repeatCount === 2) {
           tr.className = 'highlight-2x';
         } else if (repeatCount === 3) {
@@ -485,9 +545,11 @@
     }
 
     window.onload = function() {
-      fetchRoster();
+      fetchRoster(false);
       fetchLogs();
-      setInterval(fetchLogs, 5000);
+      // Staggered 8-second poll with slight random jitter so classrooms don't hit Apps Script at the exact same millisecond
+      let jitter = Math.floor(Math.random() * 1500);
+      setInterval(fetchLogs, 8000 + jitter);
     };
   </script>
 </body>
