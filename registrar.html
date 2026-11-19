@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0">
   <title>Edwin J. Kiest Coatls - Registrar Portal</title>
-  <!-- Lightweight QR Code Generator for Car Tags -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -132,6 +131,33 @@
     }
     .helper-text { font-size: 11px; color: #64748b; margin-top: 4px; }
 
+    .family-box {
+      background: #f0f9ff;
+      border: 1.5px solid #bae6fd;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .family-box-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #0369a1;
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+    }
+    .family-match-banner {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 8px;
+      display: none;
+    }
+
     .btn-row { display: flex; gap: 10px; margin-top: 18px; }
     .btn-primary {
       flex: 1;
@@ -186,7 +212,7 @@
     /* Directory Table */
     .search-bar { margin-bottom: 12px; }
     .table-wrap {
-      max-height: 490px;
+      max-height: 520px;
       overflow-y: auto;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
@@ -195,28 +221,37 @@
     th {
       background: var(--coatl-navy);
       color: #fff;
-      padding: 10px 12px;
+      padding: 10px 10px;
       font-size: 11px;
       text-transform: uppercase;
       position: sticky;
       top: 0;
     }
     td {
-      padding: 9px 12px;
+      padding: 8px 10px;
       border-bottom: 1px solid #f1f5f9;
       font-weight: 600;
     }
     tr:hover td { background: #f8fafc; }
+    .fam-pill {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
     .mini-btn {
       background: #e0f2fe;
       color: #0369a1;
       border: 1px solid #bae6fd;
-      padding: 4px 9px;
+      padding: 4px 8px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 800;
       cursor: pointer;
-      margin-right: 4px;
+      margin-right: 3px;
     }
     .mini-btn:hover { background: #bae6fd; }
     .mini-btn-tag {
@@ -397,14 +432,14 @@
     <div class="header no-print">
       <div>
         <h2>Edwin J. Kiest Coatls</h2>
-        <div class="subtitle">REGISTRAR ROSTER & CAR TAG PORTAL</div>
+        <div class="subtitle">REGISTRAR & CRC ROSTER PORTAL</div>
       </div>
       <div class="status-pill" id="rosterBadge">⏳ Loading Roster...</div>
     </div>
 
     <!-- MODE SWITCHER TABS -->
     <div class="nav-tabs no-print">
-      <button type="button" class="tab-btn active" id="tabBtnRoster" onclick="switchMode('roster')">1. Add / Update Student</button>
+      <button type="button" class="tab-btn active" id="tabBtnRoster" onclick="switchMode('roster')">1. Add / Update Student & Family Link</button>
       <button type="button" class="tab-btn" id="tabBtnTags" onclick="switchMode('tags')">2. Print Car Tags (Student or Section)</button>
     </div>
 
@@ -422,7 +457,7 @@
           <div class="form-group">
             <label for="studentId">Student ID Number <span class="req">*</span></label>
             <input type="text" id="studentId" placeholder="e.g., 1234567" required oninput="checkExistingId(this.value)">
-            <div class="helper-text" id="idHelper">Enter district student ID. If ID already exists, submitting will update their record.</div>
+            <div class="helper-text" id="idHelper">Enter district student ID. Existing IDs will update automatically.</div>
           </div>
 
           <div class="form-group">
@@ -444,10 +479,23 @@
             <input type="text" id="teacherName" placeholder="Auto-fills from section or type teacher name" required>
           </div>
 
-          <div class="form-group">
-            <label for="familyToken">Family Carpool / Sibling Token (Optional)</label>
-            <input type="text" id="familyToken" placeholder="e.g., FAM-104 (leave blank if none)">
-            <div class="helper-text">Use the same token across siblings so one scan dismisses the whole family.</div>
+          <!-- AUTOMATIC FAMILY & SIBLING LINKING SECTION -->
+          <div class="family-box">
+            <div class="family-box-title">👨‍👩‍👧‍👦 Automatic Family & Sibling Linking</div>
+
+            <div class="form-group" style="margin-bottom:10px;">
+              <label for="parentEmails">Parent Email(s)</label>
+              <input type="text" id="parentEmails" placeholder="e.g., mom@email.com, dad@email.com" oninput="evaluateFamilyMatch()">
+              <div class="helper-text">Separate multiple emails with a comma. Matching emails automatically share a Family Token.</div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="linkedSiblingInput">Link to Existing Sibling (Optional)</label>
+              <input type="text" id="linkedSiblingInput" placeholder="Search sibling name or ID to link..." list="studentDatalist" oninput="evaluateFamilyMatch()">
+              <input type="hidden" id="resolvedSiblingId">
+            </div>
+
+            <div id="familyMatchBanner" class="family-match-banner"></div>
           </div>
 
           <div class="form-group">
@@ -456,7 +504,7 @@
           </div>
 
           <div class="btn-row">
-            <button type="submit" class="btn-primary" id="submitBtn">Save Student to Roster</button>
+            <button type="submit" class="btn-primary" id="submitBtn">Save Student & Generate Family Token</button>
             <button type="button" class="btn-secondary" onclick="resetForm()">Clear</button>
           </div>
         </form>
@@ -470,7 +518,7 @@
         </h3>
 
         <div class="search-bar">
-          <input type="text" id="directorySearch" placeholder="Search by student name, ID, homeroom, or teacher..." oninput="renderDirectory()">
+          <input type="text" id="directorySearch" placeholder="Search by name, ID, section, parent email, or FAM token..." oninput="renderDirectory()">
         </div>
 
         <div class="table-wrap">
@@ -479,8 +527,8 @@
               <tr>
                 <th>ID</th>
                 <th>Student Name</th>
-                <th>Section</th>
-                <th>Teacher</th>
+                <th>Sec</th>
+                <th>Family</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -535,7 +583,8 @@
     <input type="hidden" name="studentName" id="postStudentName">
     <input type="hidden" name="section" id="postSection">
     <input type="hidden" name="teacher" id="postTeacher">
-    <input type="hidden" name="familyToken" id="postFamilyToken">
+    <input type="hidden" name="parentEmails" id="postParentEmails">
+    <input type="hidden" name="linkedSiblingId" id="postLinkedSiblingId">
     <input type="hidden" name="photoUrl" id="postPhotoUrl">
   </form>
 
@@ -623,9 +672,8 @@
           renderDirectory();
           badge.innerText = '🟢 ' + rosterList.length + ' Active Students';
         } else {
-          console.error("Unexpected roster format from Code.gs:", rawResponse);
           badge.innerText = '⚠️ Data Format Mismatch';
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:25px; color:#991b1b;">Connected, but roster data format was unexpected. Check console (F12).</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:25px; color:#991b1b;">Connected, but roster data format was unexpected.</td></tr>';
         }
       };
 
@@ -636,7 +684,7 @@
         didRespond = true;
         clearTimeout(timeoutTimer);
         badge.innerText = '🔴 Connection Error';
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:25px; color:#991b1b;">Failed to reach Google Apps Script. Check deployment permissions.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:25px; color:#991b1b;">Failed to reach Google Apps Script.</td></tr>';
       };
       document.body.appendChild(script);
     }
@@ -704,9 +752,56 @@
         editTag.style.display = 'inline-block';
         formTitle.innerText = '✏️ Update Student';
       } else {
-        helper.innerText = 'Enter district student ID. If ID already exists, submitting will update their record.';
+        helper.innerText = 'Enter district student ID. Existing IDs will update automatically.';
         editTag.style.display = 'none';
         formTitle.innerText = '➕ Add New Student';
+      }
+    }
+
+    function evaluateFamilyMatch() {
+      const currentStudentId = document.getElementById('studentId').value.trim().toLowerCase();
+      const emailRaw = document.getElementById('parentEmails').value.toLowerCase();
+      const siblingRaw = document.getElementById('linkedSiblingInput').value.trim();
+      const banner = document.getElementById('familyMatchBanner');
+      const hiddenSibId = document.getElementById('resolvedSiblingId');
+
+      hiddenSibId.value = '';
+      let matchedSibling = null;
+
+      // 1. Check explicit sibling selection ("Name (ID)" or direct ID/Name)
+      if (siblingRaw) {
+        let idMatch = siblingRaw.match(/\(([^)]+)\)$/);
+        if (idMatch && rosterMap[idMatch[1].trim().toLowerCase()]) {
+          matchedSibling = rosterMap[idMatch[1].trim().toLowerCase()];
+        } else {
+          let q = siblingRaw.toLowerCase();
+          matchedSibling = rosterMap[q] || rosterList.find(s => String(s.name).toLowerCase() === q);
+        }
+        if (matchedSibling) {
+          hiddenSibId.value = matchedSibling.id;
+        }
+      }
+
+      // 2. Check parent email overlap across existing roster
+      let incomingEmails = emailRaw.split(/[,;\s]+/).map(e => e.trim()).filter(e => e.includes('@') && e.includes('.'));
+      if (!matchedSibling && incomingEmails.length > 0) {
+        matchedSibling = rosterList.find(s => {
+          if (String(s.id || '').trim().toLowerCase() === currentStudentId) return false;
+          let existingEmail = String(s.parentEmail || s.email || '').toLowerCase();
+          if (!existingEmail) return false;
+          return incomingEmails.some(em => existingEmail.includes(em));
+        });
+      }
+
+      if (matchedSibling) {
+        let tokText = matchedSibling.familyToken ? ` (${matchedSibling.familyToken})` : ' (a shared FAM token will be created)';
+        banner.style.display = 'block';
+        banner.innerText = `🔗 Linked to sibling: ${matchedSibling.name} in ${matchedSibling.section || 'Roster'}${tokText}`;
+      } else if (incomingEmails.length > 0) {
+        banner.style.display = 'block';
+        banner.innerText = `✨ New family detected — a unique FAM token will be auto-generated on save.`;
+      } else {
+        banner.style.display = 'none';
       }
     }
 
@@ -717,7 +812,9 @@
       document.getElementById('studentId').value = s.id;
       document.getElementById('studentName').value = s.name;
       document.getElementById('teacherName').value = s.teacher || '';
-      document.getElementById('familyToken').value = s.familyToken || '';
+      document.getElementById('parentEmails').value = s.parentEmail || s.email || '';
+      document.getElementById('linkedSiblingInput').value = '';
+      document.getElementById('resolvedSiblingId').value = '';
       document.getElementById('photoUrl').value = (s.photo && !s.photo.includes('146otTzK-r13z4ZAnzvExVB0nHt7Kg-ko')) ? s.photo : '';
 
       const select = document.getElementById('sectionSelect');
@@ -734,6 +831,7 @@
       }
 
       checkExistingId(s.id);
+      evaluateFamilyMatch();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -756,7 +854,8 @@
         ? document.getElementById('customSectionInput').value.trim()
         : selectVal;
       const teacher = document.getElementById('teacherName').value.trim();
-      const familyToken = document.getElementById('familyToken').value.trim();
+      const parentEmails = document.getElementById('parentEmails').value.trim();
+      const linkedSiblingId = document.getElementById('resolvedSiblingId').value.trim();
       const photoUrl = document.getElementById('photoUrl').value.trim();
 
       if (!studentId || !studentName || !section || !teacher) {
@@ -766,13 +865,14 @@
 
       const submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
-      submitBtn.innerText = 'Saving...';
+      submitBtn.innerText = 'Saving & Linking Family...';
 
       document.getElementById('postStudentId').value = studentId;
       document.getElementById('postStudentName').value = studentName;
       document.getElementById('postSection').value = section;
       document.getElementById('postTeacher').value = teacher;
-      document.getElementById('postFamilyToken').value = familyToken;
+      document.getElementById('postParentEmails').value = parentEmails;
+      document.getElementById('postLinkedSiblingId').value = linkedSiblingId;
       document.getElementById('postPhotoUrl').value = photoUrl;
 
       document.getElementById('hiddenPostForm').submit();
@@ -781,25 +881,26 @@
         id: studentId,
         name: studentName,
         section: section,
-        teacher: teacher,
-        familyToken: familyToken
+        teacher: teacher
       };
 
       setTimeout(function() {
         submitBtn.disabled = false;
-        submitBtn.innerText = 'Save Student to Roster';
+        submitBtn.innerText = 'Save Student & Generate Family Token';
         studentsToPrint = [savedStudentObj];
         renderCarTags();
-        showAlert(`✅ Saved ${studentName} (ID: ${studentId}) to ${section}! Switch to "Print Car Tags" if you need a tag right now.`, 'alert-success');
+        showAlert(`✅ Saved ${studentName} (ID: ${studentId}) and assigned Family Token!`, 'alert-success');
         resetForm();
         fetchFreshRoster();
-      }, 1800);
+      }, 2000);
     }
 
     function resetForm() {
       document.getElementById('registrarForm').reset();
       document.getElementById('customSectionInput').style.display = 'none';
       document.getElementById('customSectionInput').required = false;
+      document.getElementById('resolvedSiblingId').value = '';
+      document.getElementById('familyMatchBanner').style.display = 'none';
       checkExistingId('');
     }
 
@@ -821,7 +922,9 @@
           String(s.id || '').toLowerCase().includes(query) ||
           String(s.name || '').toLowerCase().includes(query) ||
           String(s.section || '').toLowerCase().includes(query) ||
-          String(s.teacher || '').toLowerCase().includes(query)
+          String(s.teacher || '').toLowerCase().includes(query) ||
+          String(s.familyToken || '').toLowerCase().includes(query) ||
+          String(s.parentEmail || s.email || '').toLowerCase().includes(query)
         );
       }
 
@@ -834,11 +937,12 @@
       let html = '';
       slice.forEach(s => {
         let safeId = String(s.id).replace(/'/g, "\\'");
+        let famBadge = s.familyToken ? `<span class="fam-pill">${s.familyToken}</span>` : '<span style="color:#94a3b8;">—</span>';
         html += `<tr>
           <td>${s.id}</td>
           <td>${s.name}</td>
           <td>${s.section || '-'}</td>
-          <td>${s.teacher || '-'}</td>
+          <td>${famBadge}</td>
           <td style="white-space:nowrap;">
             <button type="button" class="mini-btn" onclick="loadStudentForEdit('${safeId}')">Edit</button>
             <button type="button" class="mini-btn mini-btn-tag" onclick="quickPrintSingleStudent('${safeId}')">🏷️ Tag</button>
